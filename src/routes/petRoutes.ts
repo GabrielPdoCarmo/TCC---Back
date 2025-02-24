@@ -1,22 +1,12 @@
 import { Router } from "express";
-import { Animal } from "../models/Animais";
+import { PetController } from "../controllers/PetController";
 
 const router = Router();
 
-// Criar pet
-router.post("/pets", async (req, res) => {
-  try {
-    const pet = await Pet.create(req.body);
-    res.status(201).json(pet);
-  } catch (error) {
-    res.status(400).json({ error: "Erro ao criar pet" });
-  }
-});
-
-// Buscar todos os pets
-router.get("/pets", async (req, res) => {
-  const pets = await Pet.findAll();
-  res.json(pets);
-});
+router.get("/pets", PetController.getAll);
+router.get("/pets/:id", PetController.getById);
+router.post("/pets", PetController.create);
+router.put("/pets/:id", PetController.update);
+router.delete("/pets/:id", PetController.delete);
 
 export default router;

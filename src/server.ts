@@ -1,15 +1,18 @@
 import express from "express";
-import cors from "cors";
-import { sequelize } from "./database";
 import petRoutes from "./routes/petRoutes";
+import estadoRoutes from "./routes/estadoRoutes";
+import cidadeRoutes from "./routes/cidadeRoutes";
+import usuarioRoutes from "./routes/usuarioRoutes";
 
 const app = express();
-app.use(cors());
+
 app.use(express.json());
-app.use(petRoutes);
+app.use("/api", petRoutes);
+app.use("/api", estadoRoutes);
+app.use("/api", cidadeRoutes);
+app.use("/api", usuarioRoutes);
 
-sequelize.sync({ alter: true }).then(() => {
-  console.log("Banco de dados conectado");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
-
-app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
