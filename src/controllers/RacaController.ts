@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { Raca } from "../models/Raca";
-import { Especie } from "../models/Especie";
+import { Raca } from "../models/racaModel";
+import { Especie } from "../models/especiesModel";
 
 export class RacaController {
   static async listar(req: Request, res: Response) {

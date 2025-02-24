@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Cidade } from "../models/Cidade";
+import { Cidade } from "../models/cidadeModel";
 
 export class CidadeController {
   static async getAll(req: Request, res: Response) {

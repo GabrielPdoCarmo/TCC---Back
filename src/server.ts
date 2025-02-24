@@ -8,14 +8,14 @@ import usuarioRoutes from "./routes/usuarioRoutes";
 import faixaEtariaRoutes from "./routes/faixaEtariaRoutes";
 import statusRoutes from "./routes/statusRoutes";
 import doencasDeficienciasRoutes from "./routes/doencasDeficienciasRoutes";
-import { DoencasDeficiencias } from "./models/DoencasDeficiencias";
-import { Pet } from "./models/Pet";
-import { Estado } from "./models/Estado";
-import { Cidade } from "./models/Cidade";
-import { Usuario } from "./models/Usuario";
-import {Status} from "./models/Status";
-import {EspecieFaixaEtaria} from "./models/EspecieFaixaEtaria";
-import {FaixaEtaria} from "./models/FaixaEtaria";
+import { DoencasDeficiencias } from "./models/doencasDeficienciasModel";
+import { Pet } from "./models/petModel";
+import { Estado } from "./models/estadoModel";
+import { Cidade } from "./models/cidadeModel";
+import { Usuario } from "./models/usuarioModel";
+import { Status } from "./models/statusModel";
+import { EspecieFaixaEtaria } from "./models/especieFaixaEtariaModel";
+import { FaixaEtaria } from "./models/faixaEtariaModel";
 
 dotenv.config();
 
@@ -27,9 +27,9 @@ const sequelize = new Sequelize({
   dialect: "mysql",
   host: process.env.DB_HOST || "localhost",
   username: process.env.DB_USER || "root",
-  password: process.env.DB_PASS || "", 
+  password: process.env.DB_PASS || "",
   database: process.env.DB_NAME || "adocao_animais",
-  models: [Pet, Estado, Cidade, Usuario, Status, EspecieFaixaEtaria, FaixaEtaria, DoencasDeficiencias], 
+  models: [Pet, Estado, Cidade, Usuario, Status, EspecieFaixaEtaria, FaixaEtaria, DoencasDeficiencias],
 });
 
 

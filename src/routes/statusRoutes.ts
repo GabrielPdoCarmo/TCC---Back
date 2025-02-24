@@ -1,12 +1,12 @@
-import { Router } from 'express';
-import { StatusController } from '../controllers/statusController';
+import { Router } from "express";
+import { StatusController } from "../controllers/statusController";
 
 const router = Router();
-const statusController = new StatusController(); // Criando uma instância da classe
 
-router.get('/status', statusController.getAll);
-router.get('/status/:id', statusController.getById);
-router.post('/status', statusController.create);
-router.put('/status/:id', statusController.update);
+
+router.get("/status", StatusController.getAll); 
+router.get("/status/:id", StatusController.getById); 
+router.post("/status", StatusController.create); 
+router.put("/status/:id", StatusController.update); 
 
 export default router;

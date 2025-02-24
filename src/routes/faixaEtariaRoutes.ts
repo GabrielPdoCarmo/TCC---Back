@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { FaixaEtariaController } from "../controllers/faixaEtariaController"; // Confirme o nome do arquivo!
+import { FaixaEtariaController } from "../controllers/faixaEtariaController";
 
 const router = Router();
 
-router.get("/faixaetaria", FaixaEtariaController.getAll);
-router.get("/faixaetaria/:id", FaixaEtariaController.getById);
-router.post("/faixaetaria", FaixaEtariaController.create); // Corrigido
-router.put("/faixaetaria/:id", FaixaEtariaController.update);
-router.delete("/faixaetaria/:id", FaixaEtariaController.delete);
+router.get("/faixa-etaria", FaixaEtariaController.getAll);
+router.get("/faixa-etaria/:id", FaixaEtariaController.getById);
+router.post("/faixa-etaria", FaixaEtariaController.create);
+router.put("/faixa-etaria/:id", FaixaEtariaController.update);
 
 export default router;

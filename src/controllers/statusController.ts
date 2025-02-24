@@ -1,44 +1,50 @@
-import { Request, Response } from "express";
-import { Status } from "../models/Status";
+import { Request, Response, NextFunction } from "express";
+import { Status } from "../models/statusModel";
 
 export class StatusController {
-  async getAll(req: Request, res: Response) {
+  // Tornando os métodos estáticos e assincrônicos
+  static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const statusList = await Status.findAll(); // Correto no Sequelize
       res.json(statusList);
     } catch (error) {
-      res.status(500).json({ error: "Erro ao buscar os status" });
+      res.status(500).json({ error: "Erro ao listar status." });
     }
   }
 
-  async getById(req: Request, res: Response) {
+  static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const status = await Status.findByPk(Number(req.params.id)); // Correto no Sequelize
-      if (!status) return res.status(404).json({ error: "Status não encontrado" });
+      if (!status) {
+        res.status(404).json({ error: "Status não encontrado" });
+        return;
+      }
       res.json(status);
     } catch (error) {
-      res.status(500).json({ error: "Erro ao buscar status" });
+      res.status(500).json({ error: "Erro ao buscar status." });
     }
   }
 
-  async create(req: Request, res: Response) {
+  static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const status = await Status.create(req.body); // Correto no Sequelize
       res.status(201).json(status);
     } catch (error) {
-      res.status(400).json({ error: "Erro ao criar status" });
+      res.status(500).json({ error: "Erro ao criar status." });
     }
   }
 
-  async update(req: Request, res: Response) {
+  static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const status = await Status.findByPk(Number(req.params.id));
-      if (!status) return res.status(404).json({ error: "Status não encontrado" });
-
+      if (!status) {
+        res.status(404).json({ error: "Status não encontrado" });
+        return;
+      }
       await status.update(req.body); // Correto no Sequelize
       res.json(status);
     } catch (error) {
-      res.status(400).json({ error: "Erro ao atualizar status" });
+      res.status(500).json({ error: "Erro ao atualizar status." });
     }
   }
 }
