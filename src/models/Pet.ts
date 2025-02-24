@@ -3,7 +3,7 @@ import { Especie } from "./Especie";
 import { Raca } from "./Raca";
 import { FaixaEtaria } from "./FaixaEtaria";
 import { Usuario } from "./Usuario";
-import { DoencaDeficiencia } from "./DoencaDeficiencia";
+import { DoencasDeficiencias } from "./DoencasDeficiencias";
 import { Status } from "./Status";
 
 @Table({
@@ -42,7 +42,7 @@ export class Pet extends Model {
   @Column({ type: DataType.STRING(15), allowNull: false })
   sexo!: string;
 
-  @ForeignKey(() => DoencaDeficiencia)
+  @ForeignKey(() => DoencasDeficiencias)
   @Column({ type: DataType.INTEGER, allowNull: false })
   doencaDeficienciaId!: number;
 
