@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { RacaController } from "../controllers/RacaController";
+import { RacaController } from "../controllers/racaController";
 
 const router = Router();
 

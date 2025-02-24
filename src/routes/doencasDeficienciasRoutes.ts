@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DoencasDeficienciasController } from "../controllers/DoencasDeficienciasController";
+import { DoencasDeficienciasController } from "../controllers/doencasDeficienciasController";
 
 const router = Router();
 router.get("/doencasdeficiencias/:id", DoencasDeficienciasController.getById);

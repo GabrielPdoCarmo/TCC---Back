@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { EstadoController } from "../controllers/EstadoController";
+import { EstadoController } from "../controllers/estadoController";
 
 const router = Router();
 
