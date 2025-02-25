@@ -12,6 +12,9 @@ export class Usuario extends Model {
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
 
+  @Column({ type: DataType.STRING(100), allowNull: false })
+  sexo!: string;
+
   @Column({ type: DataType.STRING(9), allowNull: false })
   telefone!: string;
 
