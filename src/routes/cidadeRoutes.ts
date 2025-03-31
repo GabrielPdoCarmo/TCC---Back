@@ -1,9 +1,11 @@
-import { Router } from "express";
-import { CidadeController } from "../controllers/cidadeController";
+import express from 'express';
+import Cidade from '../models/cidadeModel';
 
-const router = Router();
+const router = express.Router();
 
-router.get("/cidades", CidadeController.getAll);
-router.post("/cidades", CidadeController.create);
+router.get('/', async (req, res) => {
+  const cidades = await Cidade.findAll({ include: 'estado' });
+  res.json(cidades);
+});
 
 export default router;

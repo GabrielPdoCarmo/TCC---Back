@@ -1,5 +1,5 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
-import { Estado } from "./estadoModel";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany } from "sequelize-typescript";
+import Estado from "./estadoModel";
 
 @Table({
   tableName: "Cidades",
@@ -19,3 +19,5 @@ export class Cidade extends Model {
   @BelongsTo(() => Estado)
   estado!: Estado;
 }
+
+export default Cidade;

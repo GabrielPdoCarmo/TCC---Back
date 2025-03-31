@@ -1,9 +1,11 @@
-import { Router } from "express";
-import { EstadoController } from "../controllers/estadoController";
+import express from 'express';
+import Estado from '../models/estadoModel';
 
-const router = Router();
+const router = express.Router();
 
-router.get("/estados", EstadoController.getAll);
-router.post("/estados", EstadoController.create);
+router.get('/', async (req, res) => {
+  const estados = await Estado.findAll();
+  res.json(estados);
+});
 
 export default router;

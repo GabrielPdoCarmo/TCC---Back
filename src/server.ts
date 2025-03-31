@@ -1,4 +1,5 @@
 import express from "express";
+import "reflect-metadata";
 import dotenv from "dotenv";
 import { Sequelize } from "sequelize-typescript";
 import petRoutes from "./routes/petRoutes";
@@ -16,6 +17,7 @@ import { Usuario } from "./models/usuarioModel";
 import { Status } from "./models/statusModel";
 import { EspecieFaixaEtaria } from "./models/especieFaixaEtariaModel";
 import { FaixaEtaria } from "./models/faixaEtariaModel";
+import { populateDatabase } from "./controllers/dataController";
 
 dotenv.config();
 
@@ -23,6 +25,8 @@ const app = express();
 app.use(express.json());
 
 // Conexão com o banco de dados
+console.log("Tentando conectar ao banco...");
+
 const sequelize = new Sequelize({
   dialect: "mysql",
   host: process.env.DB_HOST || "localhost",
@@ -32,19 +36,25 @@ const sequelize = new Sequelize({
   models: [Pet, Estado, Cidade, Usuario, Status, EspecieFaixaEtaria, FaixaEtaria, DoencasDeficiencias],
 });
 
-
-sequelize.sync({ alter: true }) // Garante que as tabelas estejam atualizadas
-  .then(() => console.log("Banco de dados sincronizado"))
+sequelize.authenticate()
+  .then(() => console.log("Banco de dados conectado!"))
   .catch(err => console.error("Erro ao conectar ao banco:", err));
 
-// Definição de rotas sem conflito de prefixo
+sequelize.sync()
+  .then(async () => {
+    console.log("Tabelas verificadas!");
+    await populateDatabase();
+  })
+  .catch(err => console.error("Erro ao sincronizar tabelas:", err));
+
+// Definição de rotas
 app.use("/api/pets", petRoutes);
 app.use("/api/estados", estadoRoutes);
 app.use("/api/cidades", cidadeRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/faixa-etaria", faixaEtariaRoutes);
 app.use("/api/status", statusRoutes);
-app.use("api/doencasdeficiencias", doencasDeficienciasRoutes)
+app.use("/api/doencasdeficiencias", doencasDeficienciasRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
