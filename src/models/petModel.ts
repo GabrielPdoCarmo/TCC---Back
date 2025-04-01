@@ -1,10 +1,11 @@
-import { Table, Column, Model, DataType, ForeignKey } from "sequelize-typescript";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
 import { Especie } from "./especiesModel";
 import { Raca } from "./racaModel";
 import { FaixaEtaria } from "./faixaEtariaModel";
 import { Usuario } from "./usuarioModel";
 import { DoencasDeficiencias } from "./doencasDeficienciasModel";
 import { Status } from "./statusModel";
+import { Cidade } from "./cidadeModel";
 
 @Table({
   tableName: "Pets",
@@ -55,4 +56,29 @@ export class Pet extends Model {
 
   @Column({ type: DataType.BLOB })
   foto!: Buffer;
+
+  @ForeignKey(() => Cidade)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  cidadeId!: number;
+
+  @BelongsTo(() => Cidade)
+  cidade!: Cidade;
+
+  @BelongsTo(() => Especie)
+  especie!: Especie;
+
+  @BelongsTo(() => Raca)
+  raca!: Raca;
+
+  @BelongsTo(() => FaixaEtaria)
+  faixaEtaria!: FaixaEtaria;
+
+  @BelongsTo(() => Usuario)
+  responsavel!: Usuario;
+
+  @BelongsTo(() => DoencasDeficiencias)
+  doencaDeficiencia!: DoencasDeficiencias;
+
+  @BelongsTo(() => Status)
+  status!: Status;
 }
