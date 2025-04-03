@@ -58,7 +58,7 @@ export class Pet extends Model {
   cidade_id!: number;
 
   // Relacionamento muitos-para-muitos com DoencasDeficiencias
-  @BelongsToMany(() => DoencasDeficiencias, 'PetDoencas', 'petId', 'doencaDeficienciaId')
+  @BelongsToMany(() => DoencasDeficiencias, 'pet_id', 'doencaDeficiencia_id')
   doencasDeficiencias!: DoencasDeficiencias[];
 
   @BelongsTo(() => Cidade)
