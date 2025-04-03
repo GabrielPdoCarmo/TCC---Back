@@ -1,70 +1,122 @@
-import { Request, Response, NextFunction, RequestHandler } from "express";
-import { Pet } from "../models/petModel";
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Pet } from '../models/petModel';
+import { DoencasDeficiencias } from '../models/doencasDeficienciasModel'; // <-- Adicione esta linha
 
 export class PetController {
-  // Buscar todos os pets
-  static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const pets = await Pet.findAll();
-      res.json(pets); // Não retorne nada, apenas envie a resposta
+      res.json(pets); // REMOVIDO o "return"
     } catch (error) {
-      res.status(500).json({ error: "Erro ao listar o pet." });
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao listar os pets.' });
     }
   };
 
-  // Buscar pet por ID
-  static getById: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  static getById: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const pet = await Pet.findByPk(req.params.id);
       if (!pet) {
-        res.status(404).json({ error: "Pet não encontrado." });
-        return; // Evita continuar a execução após a resposta
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
       }
-      res.json(pet); // Retorna o pet encontrado
+      res.json(pet); // REMOVIDO o "return"
     } catch (error) {
-      res.status(500).json({ error: "Erro ao buscar buscar o pet." });
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar o pet.' });
     }
   };
 
-  // Criar um novo pet
   static create: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const pet = await Pet.create(req.body);
-      res.status(201).json(pet); // Não retorne nada, apenas envie a resposta
-    } catch (error) {
-      res.status(500).json({ error: "Erro ao criar um pet." });
-    }
-  };
+      const {
+        nome,
+        especieId,
+        racaId,
+        idade,
+        faixaEtariaId,
+        responsavelId,
+        sexo,
+        motivoDoacao,
+        statusId,
+        cidadeId,
+        doenca,
+      } = req.body;
 
-  // Atualizar um pet
-  static update: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const pet = await Pet.findByPk(req.params.id);
-      if (!pet) {
-        res.status(404).json({ error: "Pet não encontrado." });
-        return; // Evita continuar a execução após a resposta
+      // 1. Criar o Pet inicialmente
+      const novoPet = await Pet.create({
+        nome,
+        especieId,
+        racaId,
+        idade,
+        faixaEtariaId,
+        responsavelId,
+        sexo,
+        motivoDoacao,
+        statusId,
+        cidadeId,
+      });
+
+      // 2. Se informar uma doença, cria o registro e associa ao pet
+      if (doenca) {
+        const novaDoenca = await DoencasDeficiencias.create({
+          nome: doenca,
+          petId: novoPet.id,
+        });
+
+        // Atualizar o Pet com a doença vinculada
+        await novoPet.update({ doencaDeficienciaId: novaDoenca.id });
       }
 
-      await pet.update(req.body);
-      res.json(pet); // Retorna o pet atualizado
+      res.status(201).json(novoPet);
     } catch (error) {
-      res.status(500).json({ error: "Erro ao atualizar pet." });
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao criar um pet.' });
     }
   };
 
-  // Deletar um pet
-  static delete: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { doencaId, ...dadosAtualizados } = req.body;
+
+      // Buscar o Pet pelo ID
+      const pet = await Pet.findByPk(req.params.id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      // Se tiver um doencaId, validar se existe
+      if (doencaId) {
+        const doencaExistente = await DoencasDeficiencias.findByPk(doencaId);
+        if (!doencaExistente) {
+          res.status(400).json({ error: 'Doença/Deficiência não encontrada.' });
+          return;
+        }
+      }
+
+      // Atualizar o pet com os dados recebidos
+      await pet.update({ ...dadosAtualizados, doencaId });
+      res.json(pet);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao atualizar o pet.' });
+    }
+  };
+
+  static delete: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const pet = await Pet.findByPk(req.params.id);
       if (!pet) {
-        res.status(404).json({ error: "Pet não encontrado." });
-        return; // Evita continuar a execução após a resposta
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
       }
 
       await pet.destroy();
-      res.status(204).send(); // Não retorne nada, apenas envie a resposta
+      res.status(204).send(); // REMOVIDO o "return"
     } catch (error) {
-      res.status(500).json({ error: "Erro ao deletar o pet." });
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao deletar o pet.' });
     }
-  }
+  };
 }

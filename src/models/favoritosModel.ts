@@ -1,23 +1,25 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
 import { Pet } from "./petModel";
+import { Usuario } from "./usuarioModel";
 
 @Table({
-  tableName: "Doencas_deficiencias",
-  timestamps: false,
+  tableName: "Favoritos",
+  timestamps: true, // Para registrar data de criação e atualização
 })
-export class DoencasDeficiencias extends Model {
+export class Favorito extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   id!: number;
+
+  @ForeignKey(() => Usuario)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  usuarioId!: number;
 
   @ForeignKey(() => Pet)
   @Column({ type: DataType.INTEGER, allowNull: false })
   petId!: number;
 
-  @Column({ type: DataType.STRING(100), allowNull: false })
-  nome!: string;
-
-  @Column({ type: DataType.BOOLEAN, allowNull: false })
-  possui!: boolean;
+  @BelongsTo(() => Usuario)
+  usuario!: Usuario;
 
   @BelongsTo(() => Pet)
   pet!: Pet;

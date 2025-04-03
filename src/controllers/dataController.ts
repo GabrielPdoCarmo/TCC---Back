@@ -4,9 +4,11 @@ import Cidade from '../models/cidadeModel';
 import { Raca } from '../models/racaModel';
 import { Especie } from '../models/especiesModel';
 import { FaixaEtaria } from '../models/faixaEtariaModel';
+import { Status } from '../models/statusModel';
 import { racas } from '../jsons/racas';
 import { especies } from '../jsons/especies';
 import { faixaEtarias } from '../jsons/faixaEtaria';
+import { status } from '../jsons/status';
 
 export const populateDatabase = async () => {
   try {
@@ -77,6 +79,21 @@ export const populateDatabase = async () => {
         if (!existe) {
           await FaixaEtaria.create(faixa);
           console.log(`✅ Faixa Etária ${faixa.nome} inserida!`);
+        }
+      })
+    );
+    console.log('✅ Faixas etárias populadas com sucesso!');
+    console.log('🔄 Inserindo status...');
+    await Promise.all(
+      status.map(async (status) => {
+        const existe = await Status.findOne({
+          where: {
+            nome: status.nome
+          },
+        });
+        if (!existe) {
+          await Status.create(status);
+          console.log(`✅ Faixa Etária ${status.nome} inserida!`);
         }
       })
     );

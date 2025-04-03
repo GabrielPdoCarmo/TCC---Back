@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BelongsToMany } from "sequelize-typescript";
 import { Especie } from "./especiesModel";
 import { Raca } from "./racaModel";
 import { FaixaEtaria } from "./faixaEtariaModel";
@@ -43,10 +43,6 @@ export class Pet extends Model {
   @Column({ type: DataType.STRING(15), allowNull: false })
   sexo!: string;
 
-  @ForeignKey(() => DoencasDeficiencias)
-  @Column({ type: DataType.INTEGER, allowNull: false })
-  doencaDeficienciaId!: number;
-
   @Column({ type: DataType.STRING(255), allowNull: false })
   motivoDoacao!: string;
 
@@ -60,6 +56,10 @@ export class Pet extends Model {
   @ForeignKey(() => Cidade)
   @Column({ type: DataType.INTEGER, allowNull: false })
   cidadeId!: number;
+
+  // Relacionamento muitos-para-muitos com DoencasDeficiencias
+  @BelongsToMany(() => DoencasDeficiencias, "PetDoencas", "petId", "doencaDeficienciaId")
+  doencasDeficiencias!: DoencasDeficiencias[];
 
   @BelongsTo(() => Cidade)
   cidade!: Cidade;
@@ -75,9 +75,6 @@ export class Pet extends Model {
 
   @BelongsTo(() => Usuario)
   responsavel!: Usuario;
-
-  @BelongsTo(() => DoencasDeficiencias)
-  doencaDeficiencia!: DoencasDeficiencias;
 
   @BelongsTo(() => Status)
   status!: Status;
