@@ -10,10 +10,4 @@ export class Especie extends Model {
 
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
-
-  @Column({ type: DataType.INTEGER })
-  idade_max?: number;
-
-  @Column({ type: DataType.INTEGER })
-  idade_min?: number;
 }

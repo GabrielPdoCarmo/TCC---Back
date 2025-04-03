@@ -1,4 +1,5 @@
-import { Table, Column, Model, DataType } from "sequelize-typescript";
+import { Table, Column, Model, DataType, ForeignKey } from "sequelize-typescript";
+import { Especie } from "./especiesModel";
 
 @Table({
   tableName: "faixas_etarias",
@@ -16,4 +17,11 @@ export class FaixaEtaria extends Model {
 
   @Column({ type: DataType.INTEGER })
   idade_min!: number;
+
+  @Column({ type: DataType.STRING(10), allowNull: false })
+  unidade!: string;
+
+  @ForeignKey(() => Especie)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  especie_id!: number;
 }

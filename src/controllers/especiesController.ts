@@ -28,10 +28,10 @@ export class EspecieController {
   }
 
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { nome, idade_max, idade_min } = req.body;
+    const { nome } = req.body;
 
     try {
-      const especie = await Especie.create({ nome, idade_max, idade_min });
+      const especie = await Especie.create({ nome });
       res.status(201).json(especie);
     } catch (error) {
       console.error('Erro ao criar espécie:', error);

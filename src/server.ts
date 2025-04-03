@@ -17,7 +17,6 @@ import { Estado } from './models/estadoModel';
 import { Cidade } from './models/cidadeModel';
 import { Usuario } from './models/usuarioModel';
 import { Status } from './models/statusModel';
-import { EspecieFaixaEtaria } from './models/especieFaixaEtariaModel';
 import { FaixaEtaria } from './models/faixaEtariaModel';
 import { populateDatabase } from './controllers/dataController';
 import { Especie } from './models/especiesModel';
@@ -37,7 +36,7 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'adocao_animais',
-  models: [Pet, Estado, Cidade, Usuario, Status, EspecieFaixaEtaria, FaixaEtaria, DoencasDeficiencias, Especie, Raca],
+  models: [Pet, Estado, Cidade, Usuario, Status, FaixaEtaria, DoencasDeficiencias, Especie, Raca],
 });
 
 sequelize

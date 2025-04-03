@@ -2,9 +2,11 @@ import axios from 'axios';
 import Estado from '../models/estadoModel';
 import Cidade from '../models/cidadeModel';
 import { Raca } from '../models/racaModel';
-import { Especie } from '../models/especiesModel'; 
+import { Especie } from '../models/especiesModel';
+import { FaixaEtaria } from '../models/faixaEtariaModel';
 import { racas } from '../jsons/racas';
-import { especies } from '../jsons/especies'; 
+import { especies } from '../jsons/especies';
+import { faixaEtarias } from '../jsons/faixaEtaria';
 
 export const populateDatabase = async () => {
   try {
@@ -38,7 +40,7 @@ export const populateDatabase = async () => {
     await Promise.all(
       especies.map(async (especie) => {
         const existe = await Especie.findOne({
-          where: { nome: especie.nome, idade_max: especie.idade_max, idade_min: especie.idade_min },
+          where: { nome: especie.nome },
         });
         if (!existe) {
           await Especie.create(especie);
@@ -60,6 +62,25 @@ export const populateDatabase = async () => {
       })
     );
     console.log('✅ Todas as raças populadas com sucesso!');
+    console.log('🔄 Inserindo faixas etárias...');
+    await Promise.all(
+      faixaEtarias.map(async (faixa) => {
+        const existe = await FaixaEtaria.findOne({
+          where: {
+            nome: faixa.nome,
+            idade_max: faixa.idade_max,
+            idade_min: faixa.idade_min,
+            unidade: faixa.unidade,
+            especie_id: faixa.especie_id,
+          },
+        });
+        if (!existe) {
+          await FaixaEtaria.create(faixa);
+          console.log(`✅ Faixa Etária ${faixa.nome} inserida!`);
+        }
+      })
+    );
+    console.log('✅ Faixas etárias populadas com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao popular o banco de dados:', error);
   }
