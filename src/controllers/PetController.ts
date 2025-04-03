@@ -65,7 +65,7 @@ export class PetController {
         });
 
         // Atualizar o Pet com a doença vinculada
-        await novoPet.update({ doencaDeficienciaId: novaDoenca.id });
+        await novoPet.update({ doencaDeficiencia_id: novaDoenca.id });
       }
 
       res.status(201).json(novoPet);

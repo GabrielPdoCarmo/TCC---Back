@@ -11,7 +11,7 @@ export class DoencasDeficiencias extends Model {
 
   @ForeignKey(() => Pet)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  petId!: number;
+  pet_id!: number;
 
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
