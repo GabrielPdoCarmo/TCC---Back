@@ -31,30 +31,30 @@ export class PetController {
     try {
       const {
         nome,
-        especieId,
-        racaId,
+        especie_id,
+        raca_id,
         idade,
-        faixaEtariaId,
-        responsavelId,
+        faixa_etaria_id,
+        usuario_id,
         sexo,
         motivoDoacao,
-        statusId,
-        cidadeId,
+        status_id,
+        cidade_id,
         doenca,
       } = req.body;
 
       // 1. Criar o Pet inicialmente
       const novoPet = await Pet.create({
         nome,
-        especieId,
-        racaId,
+        especie_id,
+        raca_id,
         idade,
-        faixaEtariaId,
-        responsavelId,
+        faixa_etaria_id,
+        usuario_id,
         sexo,
         motivoDoacao,
-        statusId,
-        cidadeId,
+        status_id,
+        cidade_id,
       });
 
       // 2. Se informar uma doença, cria o registro e associa ao pet
@@ -77,7 +77,7 @@ export class PetController {
 
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { doencaId, ...dadosAtualizados } = req.body;
+      const { doenca_id, ...dadosAtualizados } = req.body;
 
       // Buscar o Pet pelo ID
       const pet = await Pet.findByPk(req.params.id);
@@ -86,9 +86,9 @@ export class PetController {
         return;
       }
 
-      // Se tiver um doencaId, validar se existe
-      if (doencaId) {
-        const doencaExistente = await DoencasDeficiencias.findByPk(doencaId);
+      // Se tiver um doenca_id, validar se existe
+      if (doenca_id) {
+        const doencaExistente = await DoencasDeficiencias.findByPk(doenca_id);
         if (!doencaExistente) {
           res.status(400).json({ error: 'Doença/Deficiência não encontrada.' });
           return;
@@ -96,7 +96,7 @@ export class PetController {
       }
 
       // Atualizar o pet com os dados recebidos
-      await pet.update({ ...dadosAtualizados, doencaId });
+      await pet.update({ ...dadosAtualizados, doenca_id });
       res.json(pet);
     } catch (error) {
       console.error(error);

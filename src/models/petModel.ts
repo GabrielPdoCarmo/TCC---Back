@@ -1,14 +1,14 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BelongsToMany } from "sequelize-typescript";
-import { Especie } from "./especiesModel";
-import { Raca } from "./racaModel";
-import { FaixaEtaria } from "./faixaEtariaModel";
-import { Usuario } from "./usuarioModel";
-import { DoencasDeficiencias } from "./doencasDeficienciasModel";
-import { Status } from "./statusModel";
-import { Cidade } from "./cidadeModel";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BelongsToMany } from 'sequelize-typescript';
+import { Especie } from './especiesModel';
+import { Raca } from './racaModel';
+import { FaixaEtaria } from './faixaEtariaModel';
+import { Usuario } from './usuarioModel';
+import { DoencasDeficiencias } from './doencasDeficienciasModel';
+import { Status } from './statusModel';
+import { Cidade } from './cidadeModel';
 
 @Table({
-  tableName: "Pets",
+  tableName: 'Pets',
   timestamps: false,
 })
 export class Pet extends Model {
@@ -17,7 +17,7 @@ export class Pet extends Model {
 
   @ForeignKey(() => Especie)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  especieId!: number;
+  especie_id!: number;
 
   @Column({ type: DataType.STRING(255), allowNull: false })
   nome!: string;
@@ -27,18 +27,18 @@ export class Pet extends Model {
 
   @ForeignKey(() => Raca)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  racaId!: number;
+  raca_id!: number;
 
   @Column({ type: DataType.INTEGER, allowNull: false })
   idade!: number;
 
   @ForeignKey(() => FaixaEtaria)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  faixaEtariaId!: number;
+  faixa_etaria_id!: number;
 
   @ForeignKey(() => Usuario)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  responsavelId!: number;
+  usuario_id!: number;
 
   @Column({ type: DataType.STRING(15), allowNull: false })
   sexo!: string;
@@ -48,17 +48,17 @@ export class Pet extends Model {
 
   @ForeignKey(() => Status)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  statusId!: number;
+  status_id!: number;
 
   @Column({ type: DataType.BLOB })
   foto!: Buffer;
 
   @ForeignKey(() => Cidade)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  cidadeId!: number;
+  cidade_id!: number;
 
   // Relacionamento muitos-para-muitos com DoencasDeficiencias
-  @BelongsToMany(() => DoencasDeficiencias, "PetDoencas", "petId", "doencaDeficienciaId")
+  @BelongsToMany(() => DoencasDeficiencias, 'PetDoencas', 'petId', 'doencaDeficienciaId')
   doencasDeficiencias!: DoencasDeficiencias[];
 
   @BelongsTo(() => Cidade)
