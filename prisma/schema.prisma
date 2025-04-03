@@ -1,14 +1,106 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model cidades {
+  id       Int       @id @default(autoincrement())
+  nome     String    @db.VarChar(100)
+  estadoId Int
+  estados  estados   @relation(fields: [estadoId], references: [id], onDelete: NoAction, map: "cidades_ibfk_1")
+  usuario  usuario[]
+
+  @@index([estadoId], map: "estadoId")
+}
+
+model doencas_deficiencias {
+  id     Int     @id @default(autoincrement())
+  nome   String  @db.VarChar(100)
+  possui Boolean
+}
+
+model especies {
+  id    Int     @id @default(autoincrement())
+  nome  String  @db.VarChar(100)
+  racas racas[]
+}
+
+model estados {
+  id      Int       @id @default(autoincrement())
+  nome    String    @db.VarChar(255)
+  sigla   String    @db.VarChar(255)
+  cidades cidades[]
+}
+
+model faixas_etarias {
+  id         Int     @id @default(autoincrement())
+  nome       String  @db.VarChar(50)
+  idade_max  Int?
+  idade_min  Int?
+  unidade    String? @db.VarChar(10)
+  especie_id Int
+}
+
+model favoritos {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  petId     Int
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+  usuario   usuario  @relation(fields: [usuarioId], references: [id], onDelete: NoAction, map: "favoritos_ibfk_1")
+  pets      pets     @relation(fields: [petId], references: [id], onDelete: NoAction, map: "favoritos_ibfk_2")
+
+  @@index([petId], map: "petId")
+  @@index([usuarioId], map: "usuarioId")
+}
+
+model pets {
+  id                  Int         @id @default(autoincrement())
+  especieId           Int
+  nome                String      @db.VarChar(255)
+  quantidade          Int
+  racaId              Int
+  idade               Int
+  faixaEtariaId       Int
+  responsavelId       Int
+  sexo                String      @db.VarChar(15)
+  doencaDeficienciaId Int
+  motivoDoacao        String      @db.VarChar(255)
+  statusId            Int
+  foto                Bytes?      @db.Blob
+  favoritos           favoritos[]
+}
+
+model racas {
+  id         Int      @id @default(autoincrement())
+  nome       String   @db.VarChar(255)
+  especie_id Int
+  especies   especies @relation(fields: [especie_id], references: [id], onDelete: NoAction, map: "racas_ibfk_1")
+
+  @@index([especie_id], map: "especie_id")
+}
+
+model status {
+  id   Int    @id @default(autoincrement())
+  nome String @db.VarChar(100)
+}
+
+model usuario {
+  id        Int         @id @default(autoincrement())
+  nome      String      @db.VarChar(100)
+  sexo      String      @db.VarChar(100)
+  telefone  String      @db.VarChar(9)
+  email     String      @unique(map: "email") @db.VarChar(255)
+  senha     String      @db.VarChar(12)
+  cpf       String      @unique(map: "cpf") @db.VarChar(14)
+  cep       String?     @db.VarChar(10)
+  cidadeId  Int
+  favoritos favoritos[]
+  cidades   cidades     @relation(fields: [cidadeId], references: [id], onDelete: NoAction, map: "usuario_ibfk_1")
+
+  @@index([cidadeId], map: "cidadeId")
 }
