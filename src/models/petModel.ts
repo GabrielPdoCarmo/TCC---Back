@@ -6,6 +6,7 @@ import { Usuario } from './usuarioModel';
 import { DoencasDeficiencias } from './doencasDeficienciasModel';
 import { Status } from './statusModel';
 import { Cidade } from './cidadeModel';
+import { PetDoencaDeficiencia } from './petDoencaDeficienciaModel';
 
 @Table({
   tableName: 'Pets',
@@ -56,10 +57,6 @@ export class Pet extends Model {
   @ForeignKey(() => Cidade)
   @Column({ type: DataType.INTEGER, allowNull: false })
   cidade_id!: number;
-
-  // Relacionamento muitos-para-muitos com DoencasDeficiencias
-  @BelongsToMany(() => DoencasDeficiencias, 'pet_id', 'doencaDeficiencia_id')
-  doencasDeficiencias!: DoencasDeficiencias[];
 
   @BelongsTo(() => Cidade)
   cidade!: Cidade;

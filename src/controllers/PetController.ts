@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Pet } from '../models/petModel';
-import { DoencasDeficiencias } from '../models/doencasDeficienciasModel'; // <-- Adicione esta linha
+import { DoencasDeficiencias } from '../models/doencasDeficienciasModel';
+import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
 
 export class PetController {
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
@@ -40,10 +41,10 @@ export class PetController {
         motivoDoacao,
         status_id,
         cidade_id,
-        doenca,
+        quantidade,
+        doencas,
       } = req.body;
 
-      // 1. Criar o Pet inicialmente
       const novoPet = await Pet.create({
         nome,
         especie_id,
@@ -55,20 +56,27 @@ export class PetController {
         motivoDoacao,
         status_id,
         cidade_id,
+        quantidade,
       });
 
-      // 2. Se informar uma doença, cria o registro e associa ao pet
-      if (doenca) {
-        const novaDoenca = await DoencasDeficiencias.create({
-          nome: doenca,
-          petId: novoPet.id,
-        });
+      // Se veio alguma doença no body
+      if (doencas && Array.isArray(doencas)) {
+        await Promise.all(
+          doencas.map(async (nome: string) => {
+            const [doenca] = await DoencasDeficiencias.findOrCreate({
+              where: { nome },
+            });
 
-        // Atualizar o Pet com a doença vinculada
-        await novoPet.update({ doencaDeficiencia_id: novaDoenca.id });
+            await PetDoencaDeficiencia.create({
+              pet_id: novoPet.id,
+              doencaDeficiencia_id: doenca.id,
+              possui: true, // valor padrão
+            });
+          })
+        );
       }
 
-      res.status(201).json(novoPet);
+      res.status(201).json(novoPet); // <- estava no lugar errado
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao criar um pet.' });
@@ -104,19 +112,21 @@ export class PetController {
     }
   };
 
-  static delete: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+  static delete: RequestHandler = async (req, res) => {
     try {
-      const pet = await Pet.findByPk(req.params.id);
+      const { id } = req.params;
+      const pet = await Pet.findByPk(id);
+
       if (!pet) {
-        res.status(404).json({ error: 'Pet não encontrado.' });
-        return;
+        res.status(404).json({ message: 'Pet não encontrado.' });
+        return; // <- necessário pra não continuar a função depois do retorno
       }
 
       await pet.destroy();
-      res.status(204).send(); // REMOVIDO o "return"
+      res.status(200).json({ message: 'Pet deletado com sucesso.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Erro ao deletar o pet.' });
+      res.status(500).json({ error: 'Erro ao deletar pet.' });
     }
   };
 }

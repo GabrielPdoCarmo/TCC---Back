@@ -1,11 +1,11 @@
-import { Router } from "express";
-import { FaixaEtariaController } from "../controllers/faixaEtariaController";
+import { Router } from 'express';
+import { FaixaEtariaController } from '../controllers/faixaEtariaController';
 
 const router = Router();
 
-router.get("/faixa-etaria", FaixaEtariaController.getAll);
-router.get("/faixa-etaria/:id", FaixaEtariaController.getById);
-router.post("/faixa-etaria", FaixaEtariaController.create);
-router.put("/faixa-etaria/:id", FaixaEtariaController.update);
+router.get('/', FaixaEtariaController.getAll);
+router.get('/:id', FaixaEtariaController.getById);
+router.post('/', FaixaEtariaController.create);
+router.put('/:id', FaixaEtariaController.update);
 
 export default router;

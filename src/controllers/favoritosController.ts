@@ -1,36 +1,36 @@
 import { Request, Response } from 'express';
-import { Favorito } from '../models/FavoritosModel';
+import { Favorito } from '../models/favoritosModel';
 import { Pet } from '../models/petModel';
 import { Usuario } from '../models/usuarioModel';
 
 export class FavoritosController {
   static async create(req: Request, res: Response): Promise<void> {
     try {
-      const { usuarioId, petId } = req.body;
+      const { usuario_id, pet_id } = req.body;
 
       // Validação de usuário
-      const usuario = await Usuario.findByPk(usuarioId);
+      const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
       // Validação de pet
-      const pet = await Pet.findByPk(petId);
+      const pet = await Pet.findByPk(pet_id);
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
       }
 
       // Verificar se o favorito já existe
-      const favoritoExistente = await Favorito.findOne({ where: { usuarioId, petId } });
+      const favoritoExistente = await Favorito.findOne({ where: { usuario_id, pet_id } });
       if (favoritoExistente) {
         res.status(400).json({ error: 'Este pet já está nos favoritos do usuário.' });
         return;
       }
 
       // Criar favorito
-      const novoFavorito = await Favorito.create({ usuarioId, petId });
+      const novoFavorito = await Favorito.create({ usuario_id, pet_id });
       res.status(201).json(novoFavorito);
     } catch (error) {
       console.error(error);
@@ -40,17 +40,17 @@ export class FavoritosController {
 
   static async getByUserId(req: Request, res: Response): Promise<void> {
     try {
-      const { usuarioId } = req.params;
+      const { usuario_id } = req.params;
 
       // Validação de usuário
-      const usuario = await Usuario.findByPk(usuarioId);
+      const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
       const favoritos = await Favorito.findAll({
-        where: { usuarioId },
+        where: { usuario_id },
         include: [{ model: Pet }],
       });
 
@@ -63,23 +63,23 @@ export class FavoritosController {
 
   static async delete(req: Request, res: Response): Promise<void> {
     try {
-      const { usuarioId, petId } = req.params;
+      const { usuario_id, pet_id } = req.params;
 
       // Validação de usuário
-      const usuario = await Usuario.findByPk(usuarioId);
+      const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
       // Validação de pet
-      const pet = await Pet.findByPk(petId);
+      const pet = await Pet.findByPk(pet_id);
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
       }
 
-      const favorito = await Favorito.findOne({ where: { usuarioId, petId } });
+      const favorito = await Favorito.findOne({ where: { usuario_id, pet_id } });
 
       if (!favorito) {
         res.status(404).json({ error: 'Favorito não encontrado.' });

@@ -22,7 +22,8 @@ import { FaixaEtaria } from './models/faixaEtariaModel';
 import { populateDatabase } from './controllers/dataController';
 import { Especie } from './models/especiesModel';
 import { Raca } from './models/racaModel';
-import { Favorito } from './models/FavoritosModel';
+import { Favorito } from './models/favoritosModel';
+import {PetDoencaDeficiencia} from './models/petDoencaDeficienciaModel'
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'adocao_animais',
-  models: [Pet, Estado, Cidade, Usuario, Status, FaixaEtaria, DoencasDeficiencias, Especie, Raca, Favorito],
+  models: [Pet, Estado, Cidade, Usuario, Status, FaixaEtaria, DoencasDeficiencias, Especie, Raca, Favorito,PetDoencaDeficiencia],
 });
 
 sequelize
