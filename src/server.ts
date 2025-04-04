@@ -12,6 +12,7 @@ import doencasDeficienciasRoutes from './routes/doencasDeficienciasRoutes';
 import especieRoutes from './routes/especieRoutes';
 import racasRoutes from './routes/racaRoutes';
 import favoritosRoutes from './routes/favoritosRouter';
+import authRoutes from './routes/authRoutes';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';
 import { Estado } from './models/estadoModel';
@@ -23,7 +24,7 @@ import { populateDatabase } from './controllers/dataController';
 import { Especie } from './models/especiesModel';
 import { Raca } from './models/racaModel';
 import { Favorito } from './models/favoritosModel';
-import {PetDoencaDeficiencia} from './models/petDoencaDeficienciaModel'
+import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
 
 dotenv.config();
 
@@ -39,7 +40,19 @@ const sequelize = new Sequelize({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'adocao_animais',
-  models: [Pet, Estado, Cidade, Usuario, Status, FaixaEtaria, DoencasDeficiencias, Especie, Raca, Favorito,PetDoencaDeficiencia],
+  models: [
+    Pet,
+    Estado,
+    Cidade,
+    Usuario,
+    Status,
+    FaixaEtaria,
+    DoencasDeficiencias,
+    Especie,
+    Raca,
+    Favorito,
+    PetDoencaDeficiencia,
+  ],
 });
 
 sequelize
@@ -66,6 +79,7 @@ app.use('/api/doencasdeficiencias', doencasDeficienciasRoutes);
 app.use('/api/especies', especieRoutes);
 app.use('/api/racas', racasRoutes);
 app.use('/api/favoritos', favoritosRoutes);
+app.use('/api/auth', authRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
