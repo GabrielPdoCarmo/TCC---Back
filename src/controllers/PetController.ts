@@ -42,7 +42,6 @@ export class PetController {
         sexo_id,
         motivoDoacao,
         status_id,
-        cidade_id,
         quantidade,
         doencas,
       } = req.body;
