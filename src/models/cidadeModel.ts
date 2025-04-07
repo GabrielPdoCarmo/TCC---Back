@@ -1,8 +1,8 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany } from "sequelize-typescript";
-import Estado from "./estadoModel";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany } from 'sequelize-typescript';
+import Estado from './estadoModel';
 
 @Table({
-  tableName: "Cidades",
+  tableName: 'Cidades',
   timestamps: false,
 })
 export class Cidade extends Model {
@@ -14,7 +14,7 @@ export class Cidade extends Model {
 
   @ForeignKey(() => Estado)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  estadoId!: number;
+  estado_id!: number;
 
   @BelongsTo(() => Estado)
   estado!: Estado;

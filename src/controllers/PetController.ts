@@ -2,6 +2,8 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Pet } from '../models/petModel';
 import { DoencasDeficiencias } from '../models/doencasDeficienciasModel';
 import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
+import { Usuario } from '../models/usuarioModel';
+import { Cidade } from '../models/cidadeModel';
 
 export class PetController {
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
@@ -37,13 +39,26 @@ export class PetController {
         idade,
         faixa_etaria_id,
         usuario_id,
-        sexo,
+        sexo_id,
         motivoDoacao,
         status_id,
         cidade_id,
         quantidade,
         doencas,
       } = req.body;
+
+      // Buscar o usuário e a cidade dele
+      const usuario = await Usuario.findByPk(usuario_id);
+      if (!usuario) {
+        res.status(400).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+
+      const cidade = await Cidade.findByPk(usuario.cidade_id);
+      if (!cidade) {
+        res.status(400).json({ error: 'Cidade do usuário não encontrada.' });
+        return;
+      }
 
       const novoPet = await Pet.create({
         nome,
@@ -52,14 +67,14 @@ export class PetController {
         idade,
         faixa_etaria_id,
         usuario_id,
-        sexo,
+        sexo_id,
         motivoDoacao,
         status_id,
-        cidade_id,
+        cidade_id: usuario.cidade_id,
+        estado_id: cidade.estado_id,
         quantidade,
       });
 
-      // Se veio alguma doença no body
       if (doencas && Array.isArray(doencas)) {
         await Promise.all(
           doencas.map(async (nome: string) => {
@@ -70,13 +85,13 @@ export class PetController {
             await PetDoencaDeficiencia.create({
               pet_id: novoPet.id,
               doencaDeficiencia_id: doenca.id,
-              possui: true, // valor padrão
+              possui: true,
             });
           })
         );
       }
 
-      res.status(201).json(novoPet); // <- estava no lugar errado
+      res.status(201).json(novoPet);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao criar um pet.' });
@@ -85,7 +100,7 @@ export class PetController {
 
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { doenca_id, ...dadosAtualizados } = req.body;
+      const { doenca_id, estado_id, ...dadosAtualizados } = req.body;
 
       // Buscar o Pet pelo ID
       const pet = await Pet.findByPk(req.params.id);
@@ -104,7 +119,7 @@ export class PetController {
       }
 
       // Atualizar o pet com os dados recebidos
-      await pet.update({ ...dadosAtualizados, doenca_id });
+      await pet.update({ ...dadosAtualizados, estado_id, doenca_id });
       res.json(pet);
     } catch (error) {
       console.error(error);

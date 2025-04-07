@@ -25,6 +25,7 @@ import { Especie } from './models/especiesModel';
 import { Raca } from './models/racaModel';
 import { Favorito } from './models/favoritosModel';
 import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
+import { Sexo } from './models/sexoPetModel';
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ const sequelize = new Sequelize({
     Raca,
     Favorito,
     PetDoencaDeficiencia,
+    Sexo
   ],
 });
 

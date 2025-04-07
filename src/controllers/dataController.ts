@@ -5,10 +5,12 @@ import { Raca } from '../models/racaModel';
 import { Especie } from '../models/especiesModel';
 import { FaixaEtaria } from '../models/faixaEtariaModel';
 import { Status } from '../models/statusModel';
+import { Sexo } from '../models/sexoPetModel';
 import { racas } from '../jsons/racas';
 import { especies } from '../jsons/especies';
 import { faixaEtarias } from '../jsons/faixaEtaria';
 import { status } from '../jsons/status';
+import { sexoPet } from '../jsons/sexoPet';
 
 export const populateDatabase = async () => {
   try {
@@ -88,7 +90,7 @@ export const populateDatabase = async () => {
       status.map(async (status) => {
         const existe = await Status.findOne({
           where: {
-            nome: status.nome
+            nome: status.nome,
           },
         });
         if (!existe) {
@@ -98,6 +100,21 @@ export const populateDatabase = async () => {
       })
     );
     console.log('✅ Faixas etárias populadas com sucesso!');
+
+    // 🟢 Populando Espécies
+    console.log('🔄 Inserindo sexo do pet...');
+    await Promise.all(
+      sexoPet.map(async (sexo) => {
+        const existe = await Sexo.findOne({
+          where: { descricao: sexo.descricao },
+        });
+        if (!existe) {
+          await Sexo.create(sexo);
+          console.log(`✅ Sexo do Pet ${sexo.descricao} inserida!`);
+        }
+      })
+    );
+    console.log('✅ Todas os sexos dos pets populadas com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao popular o banco de dados:', error);
   }

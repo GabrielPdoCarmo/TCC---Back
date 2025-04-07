@@ -1,8 +1,8 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
-import { Cidade } from "./cidadeModel";
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
+import { Cidade } from './cidadeModel';
 
 @Table({
-  tableName: "Usuario",
+  tableName: 'Usuario',
   timestamps: false,
 })
 export class Usuario extends Model {
@@ -32,7 +32,7 @@ export class Usuario extends Model {
 
   @ForeignKey(() => Cidade)
   @Column({ type: DataType.INTEGER, allowNull: false })
-  cidadeId!: number;
+  cidade_id!: number;
 
   @BelongsTo(() => Cidade)
   cidade!: Cidade;

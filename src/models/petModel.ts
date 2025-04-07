@@ -3,10 +3,10 @@ import { Especie } from './especiesModel';
 import { Raca } from './racaModel';
 import { FaixaEtaria } from './faixaEtariaModel';
 import { Usuario } from './usuarioModel';
-import { DoencasDeficiencias } from './doencasDeficienciasModel';
+import { Estado } from './estadoModel'; // importe o model Estado
 import { Status } from './statusModel';
 import { Cidade } from './cidadeModel';
-import { PetDoencaDeficiencia } from './petDoencaDeficienciaModel';
+import { Sexo } from './sexoPetModel';
 
 @Table({
   tableName: 'Pets',
@@ -41,8 +41,9 @@ export class Pet extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   usuario_id!: number;
 
-  @Column({ type: DataType.STRING(15), allowNull: false })
-  sexo!: string;
+  @ForeignKey(() => Sexo)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  sexo_id!: number;
 
   @Column({ type: DataType.STRING(255), allowNull: false })
   motivoDoacao!: string;
@@ -53,6 +54,10 @@ export class Pet extends Model {
 
   @Column({ type: DataType.BLOB })
   foto!: Buffer;
+
+  @ForeignKey(() => Estado)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  estado_id!: number;
 
   @ForeignKey(() => Cidade)
   @Column({ type: DataType.INTEGER, allowNull: false })
@@ -67,6 +72,9 @@ export class Pet extends Model {
   @BelongsTo(() => Raca)
   raca!: Raca;
 
+  @BelongsTo(() => Estado)
+  estado!: Estado;
+
   @BelongsTo(() => FaixaEtaria)
   faixaEtaria!: FaixaEtaria;
 
@@ -75,4 +83,6 @@ export class Pet extends Model {
 
   @BelongsTo(() => Status)
   status!: Status;
+  @BelongsTo(() => Sexo)
+  sexo!: Sexo;
 }
