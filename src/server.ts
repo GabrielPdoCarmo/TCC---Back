@@ -13,6 +13,7 @@ import especieRoutes from './routes/especieRoutes';
 import racasRoutes from './routes/racaRoutes';
 import favoritosRoutes from './routes/favoritosRouter';
 import authRoutes from './routes/authRoutes';
+import sexoUsuarioRoutes from './routes/sexoUsuarioRoutes';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';
 import { Estado } from './models/estadoModel';
@@ -26,6 +27,7 @@ import { Raca } from './models/racaModel';
 import { Favorito } from './models/favoritosModel';
 import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
 import { Sexo } from './models/sexoPetModel';
+import { Sexo_Usuario } from './models/sexoUsuarioModel';
 
 dotenv.config();
 
@@ -53,7 +55,8 @@ const sequelize = new Sequelize({
     Raca,
     Favorito,
     PetDoencaDeficiencia,
-    Sexo
+    Sexo,
+    Sexo_Usuario,
   ],
 });
 
@@ -82,6 +85,7 @@ app.use('/api/especies', especieRoutes);
 app.use('/api/racas', racasRoutes);
 app.use('/api/favoritos', favoritosRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/sexoUsuario', sexoUsuarioRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

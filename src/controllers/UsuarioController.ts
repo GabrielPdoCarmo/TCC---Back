@@ -34,7 +34,7 @@ export class UsuarioController {
   }
 
   static async create(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    let { nome, sexo, telefone, email, senha, cpf, cep, cidade_id } = req.body;
+    let { nome, sexo_id, telefone, email, senha, cpf, cep, cidade_id } = req.body;
 
     try {
       // Verificar se a senha foi fornecida
@@ -78,7 +78,7 @@ export class UsuarioController {
         cidade_id = cidade.id;
       }
 
-      const usuario = await Usuario.create({ nome, sexo, telefone, email, senha: senhaHash, cpf, cep, cidade_id });
+      const usuario = await Usuario.create({ nome, sexo_id, telefone, email, senha: senhaHash, cpf, cep, cidade_id });
 
       return res.status(201).json(usuario); // Alteração: 'return' adicionada para o tipo Promise<Response>
     } catch (error) {

@@ -11,6 +11,8 @@ import { especies } from '../jsons/especies';
 import { faixaEtarias } from '../jsons/faixaEtaria';
 import { status } from '../jsons/status';
 import { sexoPet } from '../jsons/sexoPet';
+import { Sexo_Usuario } from '../models/sexoUsuarioModel';
+import { sexoUsuario } from '../jsons/sexoUsuario';
 
 export const populateDatabase = async () => {
   try {
@@ -115,6 +117,20 @@ export const populateDatabase = async () => {
       })
     );
     console.log('✅ Todas os sexos dos pets populadas com sucesso!');
+
+    console.log('🔄 Inserindo sexo do usuario...');
+    await Promise.all(
+      sexoUsuario.map(async (sexo) => {
+        const existe = await Sexo_Usuario.findOne({
+          where: { descricao: sexo.descricao },
+        });
+        if (!existe) {
+          await Sexo_Usuario.create(sexo);
+          console.log(`✅ Sexo do Usuario ${sexo.descricao} inserida!`);
+        }
+      })
+    );
+    console.log('✅ Todas os sexos dos usuarios populadas com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao popular o banco de dados:', error);
   }

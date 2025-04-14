@@ -1,5 +1,6 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { Cidade } from './cidadeModel';
+import { Sexo_Usuario } from './sexoUsuarioModel';
 
 @Table({
   tableName: 'Usuario',
@@ -12,8 +13,9 @@ export class Usuario extends Model {
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
 
-  @Column({ type: DataType.STRING(100), allowNull: false })
-  sexo!: string;
+  @ForeignKey(() => Sexo_Usuario)
+  @Column({ type: DataType.INTEGER, allowNull: false })
+  sexo_id!: string;
 
   @Column({ type: DataType.STRING(9), allowNull: false })
   telefone!: string;
@@ -36,4 +38,7 @@ export class Usuario extends Model {
 
   @BelongsTo(() => Cidade)
   cidade!: Cidade;
+
+  @BelongsTo(() => Sexo_Usuario)
+  sexo!: Sexo_Usuario;
 }
