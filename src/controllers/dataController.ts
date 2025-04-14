@@ -33,7 +33,7 @@ export const populateDatabase = async () => {
         where: { id: item.municipio.id },
         defaults: {
           nome: item.municipio.nome,
-          estadoId: estado.id,
+          estado_id: estado.id,
         },
       });
     }

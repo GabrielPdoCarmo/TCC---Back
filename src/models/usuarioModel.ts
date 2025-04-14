@@ -21,7 +21,7 @@ export class Usuario extends Model {
   @Column({ type: DataType.STRING(255), allowNull: false, unique: true })
   email!: string;
 
-  @Column({ type: DataType.STRING(12), allowNull: false })
+  @Column({ type: DataType.STRING(255), allowNull: false })
   senha!: string;
 
   @Column({ type: DataType.STRING(14), allowNull: false, unique: true })

@@ -22,9 +22,12 @@ export class AuthController {
         return;
       }
 
+      console.log('Senha fornecida:', senha); // Senha que o usuário forneceu
+      console.log('Senha armazenada (hash):', usuario.senha); // Hash armazenado no banco
+
       const senhaValida = await bcrypt.compare(senha, usuario.senha);
       if (!senhaValida) {
-        res.status(401).json({ message: 'Senha inválida.' });
+        res.status(401).json({ message: 'Senha ou Email inválida.' });
         return;
       }
 
@@ -46,4 +49,10 @@ export class AuthController {
       res.status(500).json({ message: 'Erro interno no servidor.' });
     }
   }
+
+  static logout(req: Request, res: Response): void {
+    // No backend, não há necessidade de fazer nada a não ser responder com sucesso
+    res.status(200).json({ message: 'Deslogado com sucesso.' });
+  }
 }
+

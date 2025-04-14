@@ -8,11 +8,11 @@ import { DoencasDeficiencias } from './doencasDeficienciasModel';
 })
 export class PetDoencaDeficiencia extends Model {
   @ForeignKey(() => Pet)
-  @Column({ primaryKey: true }) // <- parte da chave composta
+  @Column({ primaryKey: true, type: DataType.INTEGER, allowNull: false }) // <- parte da chave composta
   pet_id!: number;
 
   @ForeignKey(() => DoencasDeficiencias)
-  @Column({ primaryKey: true }) // <- parte da chave composta
+  @Column({ primaryKey: true, type: DataType.INTEGER, allowNull: false }) // <- parte da chave composta
   doencaDeficiencia_id!: number;
 
   @Column({ type: DataType.BOOLEAN, allowNull: false })

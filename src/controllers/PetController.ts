@@ -46,6 +46,9 @@ export class PetController {
         doencas,
       } = req.body;
 
+      // Salvar o caminho da imagem se ela existir
+      const foto = req.file ? req.file.path : null;
+
       // Buscar o usuário e a cidade dele
       const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
@@ -72,6 +75,7 @@ export class PetController {
         cidade_id: usuario.cidade_id,
         estado_id: cidade.estado_id,
         quantidade,
+        foto, // Aqui a imagem é salva se existir
       });
 
       if (doencas && Array.isArray(doencas)) {
