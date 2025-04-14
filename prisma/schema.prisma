@@ -113,20 +113,22 @@ model status {
 }
 
 model usuario {
-  id        Int         @id @default(autoincrement())
-  nome      String      @db.VarChar(100)
-  sexo      String      @db.VarChar(100)
-  telefone  String      @db.VarChar(9)
-  email     String      @unique(map: "email") @db.VarChar(255)
-  senha     String      @db.VarChar(255)
-  cpf       String      @unique(map: "cpf") @db.VarChar(14)
-  cep       String?     @db.VarChar(10)
-  cidade_id Int
-  favoritos favoritos[]
-  pets      pets[]
-  cidades   cidades     @relation(fields: [cidade_id], references: [id], onDelete: NoAction, map: "usuario_ibfk_1")
+  id            Int           @id @default(autoincrement())
+  nome          String        @db.VarChar(100)
+  sexo_id       Int
+  telefone      String        @db.VarChar(9)
+  email         String        @unique(map: "email") @db.VarChar(255)
+  senha         String        @db.VarChar(255)
+  cpf           String        @unique(map: "cpf") @db.VarChar(14)
+  cep           String?       @db.VarChar(10)
+  cidade_id     Int
+  favoritos     favoritos[]
+  pets          pets[]
+  cidades       cidades       @relation(fields: [cidade_id], references: [id], onDelete: NoAction, map: "usuario_ibfk_1")
+  sexos_usuario sexos_usuario @relation(fields: [sexo_id], references: [id], onDelete: NoAction, map: "usuario_ibfk_2")
 
   @@index([cidade_id], map: "cidade_id")
+  @@index([sexo_id], map: "sexo_id")
 }
 
 model petdoencadeficiencia {
@@ -141,4 +143,10 @@ model sexos_pet {
   id        Int    @id @default(autoincrement())
   descricao String @unique(map: "descricao") @db.VarChar(50)
   pets      pets[]
+}
+
+model sexos_usuario {
+  id        Int       @id @default(autoincrement())
+  descricao String    @unique(map: "descricao") @db.VarChar(50)
+  usuario   usuario[]
 }
