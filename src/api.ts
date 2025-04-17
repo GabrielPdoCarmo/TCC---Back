@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Atualize a URL base com o seu link do ngrok
-const BASE_URL = 'https://d320-138-186-110-45.ngrok-free.app/api';
+const BASE_URL = 'https://2511-138-186-110-45.ngrok-free.app/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -37,8 +37,8 @@ export const getCidadesPorEstado = async (estadoId: number) => {
 };
 
 // Chamada para obter os usuários
-export const getUsuarios = async () => {
-  const response = await api.get('/usuarios');
+export const postUsuarios = async () => {
+  const response = await api.post('/usuarios');
   return response.data;
 };
 
