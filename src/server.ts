@@ -2,6 +2,7 @@ import express from 'express';
 import 'reflect-metadata';
 import dotenv from 'dotenv';
 import { Sequelize } from 'sequelize-typescript';
+
 import petRoutes from './routes/petRoutes';
 import estadoRoutes from './routes/estadoRoutes';
 import cidadeRoutes from './routes/cidadeRoutes';
@@ -33,6 +34,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+
 
 // Conexão com o banco de dados
 console.log('Tentando conectar ao banco...');
@@ -93,6 +95,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Erro interno no servidor' });
 });
 
+// Inicia o ngrok antes de rodar o servido
+
+// Inicia o servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
