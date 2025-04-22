@@ -1,5 +1,5 @@
-import axios from 'axios';
+// import axios from 'axios';
 
-export const api = axios.create({
-  baseURL: 'https://tcc-back-ivory.vercel.app/api', // precisa ter o /api
-});
+// export const api = axios.create({
+//   baseURL: 'https://tcc-back-ivory.vercel.app/api', // precisa ter o /api
+// });
