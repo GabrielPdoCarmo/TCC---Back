@@ -77,7 +77,7 @@ export class UsuarioController {
 
         cidade_id = cidade.id;
       }
-
+      cep = cep || null; // Se o CEP não for informado, atribui null
       const usuario = await Usuario.create({ nome, sexo_id, telefone, email, senha: senhaHash, cpf, cep, cidade_id });
 
       return res.status(201).json(usuario); // Alteração: 'return' adicionada para o tipo Promise<Response>
