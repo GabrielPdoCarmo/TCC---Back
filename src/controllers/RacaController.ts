@@ -35,4 +35,19 @@ export class RacaController {
       res.status(500).json({ error: 'Erro ao criar raça' });
     }
   }
+  static async listarPorEspecieID(req: Request, res: Response): Promise<void> {
+    const { especie_id } = req.params;
+
+    try {
+      const racas = await Raca.findAll({
+        where: { especie_id },
+      });
+
+      res.json(racas);
+    } catch (error) {
+      console.error('Erro ao buscar raças por espécie:', error);
+      res.status(500).json({ error: 'Erro ao buscar raças por espécie.' });
+    }
+  }
 }
+
