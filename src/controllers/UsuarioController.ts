@@ -34,7 +34,7 @@ export class UsuarioController {
   }
 
   static async create(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    let { nome, sexo_id, telefone, email, senha, cpf, cep, cidade_id } = req.body;
+    let { nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
 
     try {
       // Verificar se a senha foi fornecida
@@ -44,7 +44,9 @@ export class UsuarioController {
 
       // Verificar se a senha tem pelo menos 12 caracteres
       if (senha.length < 12) {
-        return res.status(400).json({ error: 'Senha muito curta', message: 'A senha deve ter pelo menos 12 caracteres.' });
+        return res
+          .status(400)
+          .json({ error: 'Senha muito curta', message: 'A senha deve ter pelo menos 12 caracteres.' });
       }
 
       // Hash da senha antes de salvar
@@ -78,7 +80,17 @@ export class UsuarioController {
         cidade_id = cidade.id;
       }
       cep = cep || null; // Se o CEP não for informado, atribui null
-      const usuario = await Usuario.create({ nome, sexo_id, telefone, email, senha: senhaHash, cpf, cep, cidade_id });
+      const usuario = await Usuario.create({
+        nome,
+        sexo_id,
+        telefone,
+        email,
+        senha: senhaHash,
+        cpf,
+        cep,
+        estado_id,
+        cidade_id,
+      });
 
       return res.status(201).json(usuario); // Alteração: 'return' adicionada para o tipo Promise<Response>
     } catch (error) {

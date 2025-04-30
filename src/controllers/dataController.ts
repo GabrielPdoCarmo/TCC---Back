@@ -23,22 +23,39 @@ export const populateDatabase = async () => {
     const { data } = await axios.get('https://servicodados.ibge.gov.br/api/v1/localidades/distritos');
 
     for (const item of data) {
-      const [estado] = await Estado.findOrCreate({
-        where: { id: item.municipio.microrregiao.mesorregiao.UF.id },
-        defaults: {
-          nome: item.municipio.microrregiao.mesorregiao.UF.nome,
-          sigla: item.municipio.microrregiao.mesorregiao.UF.sigla,
-        },
-      });
+      // Verificando se os dados necessários estão presentes antes de acessar
+      if (
+        item.municipio &&
+        item.municipio.microrregiao &&
+        item.municipio.microrregiao.mesorregiao &&
+        item.municipio.microrregiao.mesorregiao.UF
+      ) {
+        const uf = item.municipio.microrregiao.mesorregiao.UF;
 
-      await Cidade.findOrCreate({
-        where: { id: item.municipio.id },
-        defaults: {
-          nome: item.municipio.nome,
-          estado_id: estado.id,
-        },
-      });
+        // Criando ou buscando o estado
+        const [estado] = await Estado.findOrCreate({
+          where: { id: uf.id },
+          defaults: {
+            nome: uf.nome,
+            sigla: uf.sigla,
+          },
+        });
+
+        // Criando ou buscando a cidade
+        await Cidade.findOrCreate({
+          where: { id: item.municipio.id },
+          defaults: {
+            nome: item.municipio.nome,
+            estado_id: estado.id,
+          },
+        });
+
+      } else {
+        // Log de erro caso algum dado necessário esteja ausente
+        console.error('Dados inválidos para', item.municipio);
+      }
     }
+
     console.log('✅ Estados e cidades populados com sucesso!');
 
     // 🟢 Populando Espécies
