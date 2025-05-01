@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import Cidade from '../models/cidadeModel';
-import Estado from '../models/estadoModel';
 
 const router = express.Router(); // ✅ CORRETO!
 
