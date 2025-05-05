@@ -31,18 +31,11 @@ import { Favorito } from './models/favoritosModel';
 import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
 import { Sexo } from './models/sexoPetModel';
 import { Sexo_Usuario } from './models/sexoUsuarioModel';
-import { sexoPet } from './jsons/sexoPet';
 // import cors from 'cors';
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-
-// app.use(
-//   cors({
-//     origin: '*', // ou melhor: 'https://seu-front.vercel.app'
-//   })
-// );
 
 // Conexão com o banco de dados
 console.log('Tentando conectar ao banco...');

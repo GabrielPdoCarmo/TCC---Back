@@ -5,10 +5,7 @@ import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
 import { Usuario } from '../models/usuarioModel';
 import { Cidade } from '../models/cidadeModel';
 import { supabase } from '../api/supabaseClient'; 
-import fs from 'fs';
-import { promisify } from 'util';
 
-const readFileAsync = promisify(fs.readFile);
 export class PetController {
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -60,20 +57,16 @@ export class PetController {
         try {
           console.log('Arquivo presente, tamanho:', req.file.size);
           console.log('Tipo de arquivo:', req.file.mimetype);
-          console.log('Caminho do arquivo:', req.file.path);
-          
-          // Ler o arquivo do disco
-          const fileBuffer = await readFileAsync(req.file.path);
-          console.log('Arquivo lido do disco, tamanho do buffer:', fileBuffer.length);
-          
-          // Upload para o Supabase
+      
+          const fileBuffer = req.file.buffer;
+      
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
           const { data, error } = await supabase.storage
             .from('pets')
-            .upload(filePath, fileBuffer, { 
-              contentType: req.file.mimetype 
+            .upload(filePath, fileBuffer, {
+              contentType: req.file.mimetype,
             });
-          
+      
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
@@ -81,17 +74,13 @@ export class PetController {
             fotoUrl = publicData?.publicUrl ?? null;
             console.log('URL da imagem gerada:', fotoUrl);
           }
-          
-          // Opcionalmente, remover o arquivo temporário após o upload
-          fs.unlink(req.file.path, (err) => {
-            if (err) console.error('Erro ao excluir arquivo temporário:', err);
-          });
         } catch (fileError) {
           console.error('Erro ao processar o arquivo:', fileError);
         }
       } else {
         console.log('Nenhum arquivo foi enviado');
       }
+      
   
       // Continuar com a criação do pet
       // Buscar o usuário e a cidade dele
