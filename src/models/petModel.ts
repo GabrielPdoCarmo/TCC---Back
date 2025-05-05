@@ -52,8 +52,8 @@ export class Pet extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   status_id!: number;
 
-  @Column({ type: DataType.BLOB })
-  foto!: Buffer;
+  @Column({ type: DataType.STRING(255), allowNull: true })
+  foto!: string; // nova coluna para armazenar URL da imagem
 
   @ForeignKey(() => Estado)
   @Column({ type: DataType.INTEGER, allowNull: false })

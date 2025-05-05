@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Estado } from '../models/estadoModel';
 import { Cidade } from '../models/cidadeModel';
 import bcrypt from 'bcrypt';
-
+ import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
 const saltRounds = 10; // número de rounds de salt
 
 export class UsuarioController {
@@ -112,7 +112,6 @@ export class UsuarioController {
       }
     }
   }
-
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuario = await Usuario.findByPk(Number(req.params.id));
@@ -120,32 +119,61 @@ export class UsuarioController {
         res.status(404).json({ error: 'Usuário não encontrado' });
         return;
       }
-
-      await usuario.update(req.body);
+  
+      // Define a URL padrão para o caso de não enviar uma foto nova
+      let fotoUrl: string = usuario.foto
+  
+      // Verifica se veio imagem nova
+      if (req.file?.buffer) {
+        const filePath = `usuarios/${usuario.nome}_${Date.now()}.jpg`;
+        const { data, error } = await supabase.storage
+          .from('usuarios')
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: true,
+          });
+  
+        if (error) {
+          console.error('Erro ao enviar imagem:', error);
+          res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
+          return;
+        }
+  
+        // Gerar URL assinada para bucket privado
+        const { data: signed } = await supabase.storage
+          .from('usuarios')
+          .createSignedUrl(data.path, 60 * 60); 
+  
+        fotoUrl = signed?.signedUrl ?? fotoUrl; // Se não obtiver a URL, mantém a padrão
+      }
+  
+      // Atualiza o usuário com os dados recebidos + nova foto
+      await usuario.update({
+        ...req.body,
+        foto: fotoUrl,
+      });
+  
       res.json(usuario);
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
-
+  
       if (error instanceof UniqueConstraintError) {
-        // Tratamento para violação de chave única (email ou CPF duplicado)
         res.status(400).json({
           error: 'Dados duplicados',
           message: 'Email ou CPF já em uso por outro usuário.',
         });
       } else if (error instanceof ValidationError) {
-        // Tratamento para erros de validação
         res.status(400).json({
           error: 'Dados inválidos',
           message: error.message,
           details: error.errors.map((e) => ({ field: e.path, message: e.message })),
         });
       } else {
-        // Outros erros de banco de dados
         res.status(500).json({ error: 'Erro ao atualizar usuário.' });
       }
     }
   }
-
+  
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuario = await Usuario.findByPk(Number(req.params.id));

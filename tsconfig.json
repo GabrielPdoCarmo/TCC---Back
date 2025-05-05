@@ -8,7 +8,8 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "moduleResolution": "node"  // Adicionando moduleResolution para resolver módulos corretamente
   },
   "include": ["src/**/*.ts"]
 }

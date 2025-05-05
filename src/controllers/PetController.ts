@@ -4,7 +4,11 @@ import { DoencasDeficiencias } from '../models/doencasDeficienciasModel';
 import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
 import { Usuario } from '../models/usuarioModel';
 import { Cidade } from '../models/cidadeModel';
+import { supabase } from '../api/supabaseClient'; 
+import fs from 'fs';
+import { promisify } from 'util';
 
+const readFileAsync = promisify(fs.readFile);
 export class PetController {
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -41,27 +45,69 @@ export class PetController {
         usuario_id,
         sexo_id,
         motivoDoacao,
-        status_id,
         quantidade,
         doencas,
       } = req.body;
-
-      // Salvar o caminho da imagem se ela existir
-      const foto = req.file ? req.file.path : null;
-
+  
+      console.log('Dados recebidos:', req.body);
+      console.log('Arquivo recebido:', req.file);
+  
+      // Variável para armazenar a URL da foto
+      let fotoUrl = null;
+  
+      // Verificar se um arquivo foi enviado
+      if (req.file) {
+        try {
+          console.log('Arquivo presente, tamanho:', req.file.size);
+          console.log('Tipo de arquivo:', req.file.mimetype);
+          console.log('Caminho do arquivo:', req.file.path);
+          
+          // Ler o arquivo do disco
+          const fileBuffer = await readFileAsync(req.file.path);
+          console.log('Arquivo lido do disco, tamanho do buffer:', fileBuffer.length);
+          
+          // Upload para o Supabase
+          const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+          const { data, error } = await supabase.storage
+            .from('pets')
+            .upload(filePath, fileBuffer, { 
+              contentType: req.file.mimetype 
+            });
+          
+          if (error) {
+            console.error('Erro ao fazer upload da imagem no Supabase:', error);
+          } else if (data?.path) {
+            const { data: publicData } = supabase.storage.from('pets').getPublicUrl(data.path);
+            fotoUrl = publicData?.publicUrl ?? null;
+            console.log('URL da imagem gerada:', fotoUrl);
+          }
+          
+          // Opcionalmente, remover o arquivo temporário após o upload
+          fs.unlink(req.file.path, (err) => {
+            if (err) console.error('Erro ao excluir arquivo temporário:', err);
+          });
+        } catch (fileError) {
+          console.error('Erro ao processar o arquivo:', fileError);
+        }
+      } else {
+        console.log('Nenhum arquivo foi enviado');
+      }
+  
+      // Continuar com a criação do pet
       // Buscar o usuário e a cidade dele
       const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(400).json({ error: 'Usuário não encontrado.' });
         return;
       }
-
+  
       const cidade = await Cidade.findByPk(usuario.cidade_id);
       if (!cidade) {
         res.status(400).json({ error: 'Cidade do usuário não encontrada.' });
         return;
       }
-
+  
+      // Criar o novo pet com os dados recebidos e a URL da imagem
       const novoPet = await Pet.create({
         nome,
         especie_id,
@@ -71,20 +117,23 @@ export class PetController {
         usuario_id,
         sexo_id,
         motivoDoacao,
-        status_id,
+        status_id: 1, // Status padrão (1 = disponível)
         cidade_id: usuario.cidade_id,
         estado_id: cidade.estado_id,
         quantidade,
-        foto, // Aqui a imagem é salva se existir
+        foto: fotoUrl, // Armazenar a URL da imagem (ou null caso não tenha imagem)
       });
-
+  
+      console.log('Pet criado com sucesso:', novoPet.id);
+  
+      // Se houver doenças relacionadas ao pet, associe-as
       if (doencas && Array.isArray(doencas)) {
         await Promise.all(
           doencas.map(async (nome: string) => {
             const [doenca] = await DoencasDeficiencias.findOrCreate({
               where: { nome },
             });
-
+  
             await PetDoencaDeficiencia.create({
               pet_id: novoPet.id,
               doencaDeficiencia_id: doenca.id,
@@ -92,11 +141,12 @@ export class PetController {
             });
           })
         );
+        console.log('Doenças associadas ao pet');
       }
-
-      res.status(201).json(novoPet);
+  
+      res.status(201).json(novoPet); // Retorne o pet recém-criado
     } catch (error) {
-      console.error(error);
+      console.error('Erro completo:', error);
       res.status(500).json({ error: 'Erro ao criar um pet.' });
     }
   };
