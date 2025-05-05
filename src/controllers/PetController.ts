@@ -62,7 +62,7 @@ export class PetController {
       
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
           const { data, error } = await supabase.storage
-            .from('pets')
+            .from('pet-images')
             .upload(filePath, fileBuffer, {
               contentType: req.file.mimetype,
             });
@@ -70,7 +70,7 @@ export class PetController {
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
-            const { data: publicData } = supabase.storage.from('pets').getPublicUrl(data.path);
+            const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
             fotoUrl = publicData?.publicUrl ?? null;
             console.log('URL da imagem gerada:', fotoUrl);
           }
