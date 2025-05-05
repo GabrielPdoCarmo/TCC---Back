@@ -31,6 +31,37 @@ export class PetController {
     }
   };
 
+  static getByUsuarioId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { usuario_id } = req.params;
+      
+      // Verificar se o ID do usuário foi fornecido
+      if (!usuario_id) {
+        res.status(400).json({ error: 'ID de usuário não fornecido.' });
+        return;
+      }
+      
+      // Verificar se o usuário existe
+      const usuario = await Usuario.findByPk(usuario_id);
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+      
+      // Buscar todos os pets associados ao usuário
+      const pets = await Pet.findAll({
+        where: { usuario_id: usuario_id }
+      });
+      
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por usuário.' });
+    }
+  };
+
   static create: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const {
