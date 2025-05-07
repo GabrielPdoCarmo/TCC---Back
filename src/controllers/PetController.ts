@@ -173,32 +173,52 @@ export class PetController {
 
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { doenca_id, estado_id, ...dadosAtualizados } = req.body;
-
+      const { doenca_id, ...dadosAtualizados } = req.body;
+  
       // Buscar o Pet pelo ID
       const pet = await Pet.findByPk(req.params.id);
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
       }
-
-      // Se tiver um doenca_id, validar se existe
+  
+      // Atualizar o pet com os dados recebidos
+      await pet.update(dadosAtualizados);
+  
+      // Se tiver um doenca_id, validar se existe e criar a associação
       if (doenca_id) {
         const doencaExistente = await DoencasDeficiencias.findByPk(doenca_id);
         if (!doencaExistente) {
           res.status(400).json({ error: 'Doença/Deficiência não encontrada.' });
           return;
         }
+  
+        // Verificar se já existe a associação
+        const associacaoExistente = await PetDoencaDeficiencia.findOne({
+          where: {
+            pet_id: pet.id,
+            doencaDeficiencia_id: doenca_id
+          }
+        });
+  
+        // Se não existir, criar a associação
+        if (!associacaoExistente) {
+          await PetDoencaDeficiencia.create({
+            pet_id: pet.id,
+            doencaDeficiencia_id: doenca_id,
+            possui: true
+          });
+        }
       }
-
-      // Atualizar o pet com os dados recebidos
-      await pet.update({ ...dadosAtualizados, estado_id, doenca_id });
-      res.json(pet);
+  
+      // Buscar o pet atualizado com suas relações
+      const petAtualizado = await Pet.findByPk(req.params.id);
+      res.json(petAtualizado);
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
-  };
+  }
 
   static delete: RequestHandler = async (req, res) => {
     try {
