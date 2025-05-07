@@ -6,6 +6,6 @@ const router = Router();
 
 router.get("/", RacaController.listar);
 router.post("/", RacaController.criar);
-router.get("/:especie_id", RacaController.listarPorEspecieID);
-
+router.get("/especie/:especie_id", RacaController.listarPorEspecieID);
+router.get("/:id", RacaController.buscarPorId);
 export default router;

@@ -6,7 +6,7 @@ const router = Router();
 
 router.get('/', PetController.getAll);
 router.get('/:id', PetController.getById);
-router.get('/:usuario_id', PetController.getByUsuarioId); // Nova rota para buscar pets por ID do usuário
+router.get('/usuario/:usuario_id', PetController.getByUsuarioId);
 router.post('/', upload.single('foto'), PetController.create);
 router.put('/:id', PetController.update);
 router.delete('/:id', PetController.delete); // <-- essa linha é ESSENCIAL

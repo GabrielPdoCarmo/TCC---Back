@@ -12,7 +12,28 @@ export class RacaController {
       res.status(500).json({ error: 'Erro ao buscar raças' });
     }
   }
+  static async buscarPorId(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
 
+      if (!id || isNaN(Number(id))) {
+        res.status(400).json({ error: 'ID inválido' });
+        return;
+      }
+
+      const raca = await Raca.findByPk(id, { include: [Especie] });
+
+      if (!raca) {
+        res.status(404).json({ error: 'Raça não encontrada' });
+        return;
+      }
+
+      res.json(raca);
+    } catch (error) {
+      console.error('Erro ao buscar raça por ID:', error);
+      res.status(500).json({ error: 'Erro ao buscar raça por ID' });
+    }
+  }
   // Método de criação
   static async criar(req: Request, res: Response): Promise<void> {
     try {
@@ -50,4 +71,3 @@ export class RacaController {
     }
   }
 }
-
