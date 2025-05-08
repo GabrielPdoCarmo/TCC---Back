@@ -1,4 +1,6 @@
-import { Table, Column, Model, DataType} from 'sequelize-typescript';
+import { Table, Column, Model, DataType, HasMany } from 'sequelize-typescript';
+import { PetDoencaDeficiencia } from './petDoencaDeficienciaModel';
+
 @Table({
   tableName: 'Doencas_deficiencias',
   timestamps: false,
@@ -9,4 +11,8 @@ export class DoencasDeficiencias extends Model {
 
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
+
+  // 🔧 Associação reversa
+  @HasMany(() => PetDoencaDeficiencia)
+  petDoencas!: PetDoencaDeficiencia[];
 }

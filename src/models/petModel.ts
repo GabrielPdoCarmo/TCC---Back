@@ -48,6 +48,9 @@ export class Pet extends Model {
   @Column({ type: DataType.STRING(255), allowNull: false })
   motivoDoacao!: string;
 
+  @Column({ type: DataType.STRING(15), allowNull: true, unique: true })
+  rg_Pet!: number;
+
   @ForeignKey(() => Status)
   @Column({ type: DataType.INTEGER, allowNull: false })
   status_id!: number;

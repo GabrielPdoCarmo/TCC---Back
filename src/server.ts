@@ -16,6 +16,7 @@ import favoritosRoutes from './routes/favoritosRouter';
 import authRoutes from './routes/authRoutes';
 import sexoUsuarioRoutes from './routes/sexoUsuarioRoutes';
 import sexoRoutes from './routes/sexoPetRouter';
+import PetDoencaDeficienciaController from './controllers/PetDoencaDeficienciaController ';
 import cidades_estadosRoutes from './routes/cidade_estado_json';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';
@@ -91,6 +92,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sexoUsuario', sexoUsuarioRoutes);
 app.use('/api/estados-cidades-json', cidades_estadosRoutes);
 app.use('/api/sexoPet', sexoRoutes);
+app.use('/api/pets-doencas',doencasDeficienciasRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

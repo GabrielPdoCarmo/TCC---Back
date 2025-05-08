@@ -72,32 +72,33 @@ export class PetController {
         faixa_etaria_id,
         usuario_id,
         sexo_id,
+        rg_Pet = null,
         motivoDoacao,
         quantidade,
         doencas,
       } = req.body;
-  
+      
       console.log('Dados recebidos:', req.body);
       console.log('Arquivo recebido:', req.file);
-  
+      
       // Variável para armazenar a URL da foto
       let fotoUrl = null;
-  
+      
       // Verificar se um arquivo foi enviado
       if (req.file) {
         try {
           console.log('Arquivo presente, tamanho:', req.file.size);
           console.log('Tipo de arquivo:', req.file.mimetype);
-      
+          
           const fileBuffer = req.file.buffer;
-      
+          
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
           const { data, error } = await supabase.storage
             .from('pet-images')
             .upload(filePath, fileBuffer, {
               contentType: req.file.mimetype,
             });
-      
+          
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
@@ -112,7 +113,6 @@ export class PetController {
         console.log('Nenhum arquivo foi enviado');
       }
       
-  
       // Continuar com a criação do pet
       // Buscar o usuário e a cidade dele
       const usuario = await Usuario.findByPk(usuario_id);
@@ -120,13 +120,16 @@ export class PetController {
         res.status(400).json({ error: 'Usuário não encontrado.' });
         return;
       }
-  
+      
       const cidade = await Cidade.findByPk(usuario.cidade_id);
       if (!cidade) {
         res.status(400).json({ error: 'Cidade do usuário não encontrada.' });
         return;
       }
-  
+      
+      // Remover formatação do RG (pontos, traços, espaços e outros caracteres não numéricos)
+      const rgSemFormatacao = rg_Pet ? rg_Pet.replace(/[^0-9a-zA-Z]/g, '') : null;
+      
       // Criar o novo pet com os dados recebidos e a URL da imagem
       const novoPet = await Pet.create({
         nome,
@@ -136,6 +139,7 @@ export class PetController {
         faixa_etaria_id,
         usuario_id,
         sexo_id,
+        rg_Pet: rgSemFormatacao, // Salvar RG sem formatação
         motivoDoacao,
         status_id: 1, // Status padrão (1 = disponível)
         cidade_id: usuario.cidade_id,
@@ -143,9 +147,9 @@ export class PetController {
         quantidade,
         foto: fotoUrl, // Armazenar a URL da imagem (ou null caso não tenha imagem)
       });
-  
+      
       console.log('Pet criado com sucesso:', novoPet.id);
-  
+      
       // Se houver doenças relacionadas ao pet, associe-as
       if (doencas && Array.isArray(doencas)) {
         await Promise.all(
@@ -153,7 +157,7 @@ export class PetController {
             const [doenca] = await DoencasDeficiencias.findOrCreate({
               where: { nome },
             });
-  
+            
             await PetDoencaDeficiencia.create({
               pet_id: novoPet.id,
               doencaDeficiencia_id: doenca.id,
@@ -163,59 +167,116 @@ export class PetController {
         );
         console.log('Doenças associadas ao pet');
       }
-  
+      
       res.status(201).json(novoPet); // Retorne o pet recém-criado
     } catch (error) {
       console.error('Erro completo:', error);
-      res.status(500).json({ error: 'Erro ao criar um pet.' });
+      next(error); // Passa o erro para o próximo middleware de tratamento de erros
+      return; // Encerra a execução da função
     }
   };
 
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { doenca_id, ...dadosAtualizados } = req.body;
+      const { id } = req.params;
+      const { doencas, ...dadosAtualizados } = req.body;
   
       // Buscar o Pet pelo ID
-      const pet = await Pet.findByPk(req.params.id);
+      const pet = await Pet.findByPk(id);
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
       }
   
-      // Atualizar o pet com os dados recebidos
-      await pet.update(dadosAtualizados);
+      // Verificar se tem um arquivo de imagem
+      let fotoUrl = dadosAtualizados.foto || pet.foto; // Mantém a foto atual se não for enviada nova
   
-      // Se tiver um doenca_id, validar se existe e criar a associação
-      if (doenca_id) {
-        const doencaExistente = await DoencasDeficiencias.findByPk(doenca_id);
-        if (!doencaExistente) {
-          res.status(400).json({ error: 'Doença/Deficiência não encontrada.' });
-          return;
-        }
-  
-        // Verificar se já existe a associação
-        const associacaoExistente = await PetDoencaDeficiencia.findOne({
-          where: {
-            pet_id: pet.id,
-            doencaDeficiencia_id: doenca_id
+      if (req.file) {
+        try {
+          const fileBuffer = req.file.buffer;
+          const filePath = `pets/${pet.nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+          
+          const { data, error } = await supabase.storage
+            .from('pet-images')
+            .upload(filePath, fileBuffer, {
+              contentType: req.file.mimetype,
+            });
+          
+          if (error) {
+            console.error('Erro ao fazer upload da imagem no Supabase:', error);
+          } else if (data?.path) {
+            const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
+            fotoUrl = publicData?.publicUrl ?? null;
+            console.log('Nova URL da imagem gerada:', fotoUrl);
           }
-        });
-  
-        // Se não existir, criar a associação
-        if (!associacaoExistente) {
-          await PetDoencaDeficiencia.create({
-            pet_id: pet.id,
-            doencaDeficiencia_id: doenca_id,
-            possui: true
-          });
+        } catch (fileError) {
+          console.error('Erro ao processar o arquivo:', fileError);
         }
       }
   
-      // Buscar o pet atualizado com suas relações
-      const petAtualizado = await Pet.findByPk(req.params.id);
+      // Adicionar a URL da foto aos dados atualizados
+      dadosAtualizados.foto = fotoUrl;
+  
+      // Atualizar o pet com os dados recebidos
+      await pet.update(dadosAtualizados);
+  
+      // Se tiver doenças/deficiências, atualizar as associações
+      if (doencas && Array.isArray(doencas)) {
+        // Primeiro, remover associações existentes (opcional - depende da regra de negócio)
+        // await PetDoencaDeficiencia.destroy({ where: { pet_id: pet.id } });
+        
+        // Criar novas associações
+        await Promise.all(
+          doencas.map(async (doenca: string | number) => {
+            // Se for um ID (número)
+            if (typeof doenca === 'number') {
+              const doencaExistente = await DoencasDeficiencias.findByPk(doenca);
+              if (doencaExistente) {
+                await PetDoencaDeficiencia.findOrCreate({
+                  where: {
+                    pet_id: pet.id,
+                    doencaDeficiencia_id: doenca
+                  },
+                  defaults: {
+                    possui: true
+                  }
+                });
+              }
+            } 
+            // Se for um nome (string)
+            else if (typeof doenca === 'string') {
+              const [doencaObj] = await DoencasDeficiencias.findOrCreate({
+                where: { nome: doenca },
+              });
+              
+              await PetDoencaDeficiencia.findOrCreate({
+                where: {
+                  pet_id: pet.id,
+                  doencaDeficiencia_id: doencaObj.id
+                },
+                defaults: {
+                  possui: true
+                }
+              });
+            }
+          })
+        );
+      }
+  
+      // Buscar o pet atualizado com suas relações para retornar na resposta
+      const petAtualizado = await Pet.findByPk(id, {
+        include: [
+          {
+            model: DoencasDeficiencias,
+            as: 'doencasDeficiencias',
+            through: { attributes: ['possui'] }
+          }
+        ]
+      });
+      
       res.json(petAtualizado);
     } catch (error) {
-      console.error(error);
+      console.error('Erro ao atualizar o pet:', error);
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
   }
