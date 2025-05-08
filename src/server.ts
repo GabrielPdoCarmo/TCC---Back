@@ -16,7 +16,6 @@ import favoritosRoutes from './routes/favoritosRouter';
 import authRoutes from './routes/authRoutes';
 import sexoUsuarioRoutes from './routes/sexoUsuarioRoutes';
 import sexoRoutes from './routes/sexoPetRouter';
-import PetDoencaDeficienciaController from './controllers/PetDoencaDeficienciaController ';
 import cidades_estadosRoutes from './routes/cidade_estado_json';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';

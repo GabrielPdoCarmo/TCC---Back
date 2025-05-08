@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import PetDoencaDeficienciaController from '../controllers/PetDoencaDeficienciaController ';
+import { PetDoencaDeficienciaController } from '../controllers/PetDoencaDeficienciaController';
+
 
 const router = Router();
 
-router.get('/:pet_id', PetDoencaDeficienciaController.listarPorPetId);
+router.get('/pets/:petId', PetDoencaDeficienciaController.findByPetId);
 
-export default router;
+export default router

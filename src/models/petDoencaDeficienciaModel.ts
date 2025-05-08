@@ -30,5 +30,5 @@ export class PetDoencaDeficiencia extends Model {
   pet!: Pet;
 
   @BelongsTo(() => DoencasDeficiencias)
-  doenca!: DoencasDeficiencias; // <- nome usado no `include` no controller
+  doencaDeficiencia!: DoencasDeficiencias;
 }

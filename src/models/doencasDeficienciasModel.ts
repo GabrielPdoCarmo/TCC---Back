@@ -12,7 +12,4 @@ export class DoencasDeficiencias extends Model {
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
 
-  // 🔧 Associação reversa
-  @HasMany(() => PetDoencaDeficiencia)
-  petDoencas!: PetDoencaDeficiencia[];
 }
