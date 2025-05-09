@@ -12,4 +12,7 @@ export class DoencasDeficiencias extends Model {
   @Column({ type: DataType.STRING(100), allowNull: false })
   nome!: string;
 
+  // Add the association to PetDoencaDeficiencia
+  @HasMany(() => PetDoencaDeficiencia, 'doencaDeficiencia_id')
+  petDoencasDeficiencias!: PetDoencaDeficiencia[];
 }
