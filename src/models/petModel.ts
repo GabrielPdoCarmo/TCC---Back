@@ -7,12 +7,16 @@ import { Estado } from './estadoModel'; // importe o model Estado
 import { Status } from './statusModel';
 import { Cidade } from './cidadeModel';
 import { Sexo } from './sexoPetModel';
+import { DoencasDeficiencias } from './doencasDeficienciasModel';
+import { PetDoencaDeficiencia } from './petDoencaDeficienciaModel';
 
 @Table({
   tableName: 'Pets',
   timestamps: false,
 })
 export class Pet extends Model {
+  @BelongsToMany(() => DoencasDeficiencias, () => PetDoencaDeficiencia)
+  doencasDeficiencias!: DoencasDeficiencias[];
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   id!: number;
 

@@ -4,7 +4,7 @@ import { DoencasDeficiencias } from '../models/doencasDeficienciasModel';
 import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
 import { Usuario } from '../models/usuarioModel';
 import { Cidade } from '../models/cidadeModel';
-import { supabase } from '../api/supabaseClient'; 
+import { supabase } from '../api/supabaseClient';
 
 export class PetController {
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
@@ -34,25 +34,25 @@ export class PetController {
   static getByUsuarioId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { usuario_id } = req.params;
-      
+
       // Verificar se o ID do usuário foi fornecido
       if (!usuario_id) {
         res.status(400).json({ error: 'ID de usuário não fornecido.' });
         return;
       }
-      
+
       // Verificar se o usuário existe
       const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
-      
+
       // Buscar todos os pets associados ao usuário
       const pets = await Pet.findAll({
         where: { usuario_id: usuario_id }
       });
-      
+
       // Se não encontrou nenhum pet, retornar um array vazio com status 200
       // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
       res.status(200).json(pets);
@@ -77,28 +77,28 @@ export class PetController {
         quantidade,
         doencas,
       } = req.body;
-      
+
       console.log('Dados recebidos:', req.body);
       console.log('Arquivo recebido:', req.file);
-      
+
       // Variável para armazenar a URL da foto
       let fotoUrl = null;
-      
+
       // Verificar se um arquivo foi enviado
       if (req.file) {
         try {
           console.log('Arquivo presente, tamanho:', req.file.size);
           console.log('Tipo de arquivo:', req.file.mimetype);
-          
+
           const fileBuffer = req.file.buffer;
-          
+
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
           const { data, error } = await supabase.storage
             .from('pet-images')
             .upload(filePath, fileBuffer, {
               contentType: req.file.mimetype,
             });
-          
+
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
@@ -112,7 +112,7 @@ export class PetController {
       } else {
         console.log('Nenhum arquivo foi enviado');
       }
-      
+
       // Continuar com a criação do pet
       // Buscar o usuário e a cidade dele
       const usuario = await Usuario.findByPk(usuario_id);
@@ -120,16 +120,16 @@ export class PetController {
         res.status(400).json({ error: 'Usuário não encontrado.' });
         return;
       }
-      
+
       const cidade = await Cidade.findByPk(usuario.cidade_id);
       if (!cidade) {
         res.status(400).json({ error: 'Cidade do usuário não encontrada.' });
         return;
       }
-      
+
       // Remover formatação do RG (pontos, traços, espaços e outros caracteres não numéricos)
       const rgSemFormatacao = rg_Pet ? rg_Pet.replace(/[^0-9a-zA-Z]/g, '') : null;
-      
+
       // Criar o novo pet com os dados recebidos e a URL da imagem
       const novoPet = await Pet.create({
         nome,
@@ -147,9 +147,9 @@ export class PetController {
         quantidade,
         foto: fotoUrl, // Armazenar a URL da imagem (ou null caso não tenha imagem)
       });
-      
+
       console.log('Pet criado com sucesso:', novoPet.id);
-      
+
       // Se houver doenças relacionadas ao pet, associe-as
       if (doencas && Array.isArray(doencas)) {
         await Promise.all(
@@ -157,7 +157,7 @@ export class PetController {
             const [doenca] = await DoencasDeficiencias.findOrCreate({
               where: { nome },
             });
-            
+
             await PetDoencaDeficiencia.create({
               pet_id: novoPet.id,
               doencaDeficiencia_id: doenca.id,
@@ -167,7 +167,7 @@ export class PetController {
         );
         console.log('Doenças associadas ao pet');
       }
-      
+
       res.status(201).json(novoPet); // Retorne o pet recém-criado
     } catch (error) {
       console.error('Erro completo:', error);
@@ -180,28 +180,27 @@ export class PetController {
     try {
       const { id } = req.params;
       const { doencas, ...dadosAtualizados } = req.body;
-  
+
       // Buscar o Pet pelo ID
       const pet = await Pet.findByPk(id);
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
       }
-  
+
       // Verificar se tem um arquivo de imagem
       let fotoUrl = dadosAtualizados.foto || pet.foto; // Mantém a foto atual se não for enviada nova
-  
       if (req.file) {
         try {
           const fileBuffer = req.file.buffer;
           const filePath = `pets/${pet.nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
-          
+
           const { data, error } = await supabase.storage
             .from('pet-images')
             .upload(filePath, fileBuffer, {
               contentType: req.file.mimetype,
             });
-          
+
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
@@ -213,56 +212,67 @@ export class PetController {
           console.error('Erro ao processar o arquivo:', fileError);
         }
       }
-  
+
       // Adicionar a URL da foto aos dados atualizados
       dadosAtualizados.foto = fotoUrl;
-  
+
       // Atualizar o pet com os dados recebidos
       await pet.update(dadosAtualizados);
-  
+
       // Se tiver doenças/deficiências, atualizar as associações
       if (doencas && Array.isArray(doencas)) {
-        // Primeiro, remover associações existentes (opcional - depende da regra de negócio)
-        // await PetDoencaDeficiencia.destroy({ where: { pet_id: pet.id } });
-        
-        // Criar novas associações
-        await Promise.all(
+        // Processar cada doença recebida
+        const doencasProcessadas = await Promise.all(
           doencas.map(async (doenca: string | number) => {
+            let doencaId: number;
+
             // Se for um ID (número)
             if (typeof doenca === 'number') {
               const doencaExistente = await DoencasDeficiencias.findByPk(doenca);
-              if (doencaExistente) {
-                await PetDoencaDeficiencia.findOrCreate({
-                  where: {
-                    pet_id: pet.id,
-                    doencaDeficiencia_id: doenca
-                  },
-                  defaults: {
-                    possui: true
-                  }
-                });
-              }
-            } 
+              if (!doencaExistente) return null; // Ignorar se a doença não existir
+              doencaId = doenca;
+            }
             // Se for um nome (string)
             else if (typeof doenca === 'string') {
               const [doencaObj] = await DoencasDeficiencias.findOrCreate({
                 where: { nome: doenca },
               });
-              
-              await PetDoencaDeficiencia.findOrCreate({
-                where: {
-                  pet_id: pet.id,
-                  doencaDeficiencia_id: doencaObj.id
-                },
-                defaults: {
-                  possui: true
-                }
-              });
+              doencaId = doencaObj.id;
             }
+            else {
+              return null; // Ignorar tipos inválidos
+            }
+
+            return doencaId;
           })
         );
+
+        // Filtrar valores nulos
+        const doencasIds = doencasProcessadas.filter(id => id !== null) as number[];
+
+        // IMPORTANTE: Em vez de verificar e criar/atualizar individualmente,
+        // vamos remover todas e adicionar apenas as que foram enviadas
+        // Isso evita duplicações e mantém sincronizado com os dados enviados
+
+        // 1. Remover todas as associações existentes
+        await PetDoencaDeficiencia.destroy({
+          where: { pet_id: pet.id }
+        });
+
+        // 2. Criar novas associações com os IDs processados
+        if (doencasIds.length > 0) {
+          await Promise.all(
+            doencasIds.map(doencaId =>
+              PetDoencaDeficiencia.create({
+                pet_id: pet.id,
+                doencaDeficiencia_id: doencaId,
+                possui: true
+              })
+            )
+          );
+        }
       }
-  
+
       // Buscar o pet atualizado com suas relações para retornar na resposta
       const petAtualizado = await Pet.findByPk(id, {
         include: [
@@ -273,28 +283,36 @@ export class PetController {
           }
         ]
       });
-      
+
       res.json(petAtualizado);
     } catch (error) {
       console.error('Erro ao atualizar o pet:', error);
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
   }
-
-  static delete: RequestHandler = async (req, res) => {
+  static delete: RequestHandler = async (req, res, next) => {
     try {
       const { id } = req.params;
-      const pet = await Pet.findByPk(id);
 
+      // Verificar se o pet existe
+      const pet = await Pet.findByPk(id);
       if (!pet) {
         res.status(404).json({ message: 'Pet não encontrado.' });
-        return; // <- necessário pra não continuar a função depois do retorno
+        return;
       }
 
+      // Primeiro remover as associações com doenças/deficiências
+      // para evitar problemas de chaves estrangeiras
+      await PetDoencaDeficiencia.destroy({
+        where: { pet_id: id }
+      });
+
+      // Agora podemos deletar o pet com segurança
       await pet.destroy();
+
       res.status(200).json({ message: 'Pet deletado com sucesso.' });
     } catch (error) {
-      console.error(error);
+      console.error('Erro ao deletar pet:', error);
       res.status(500).json({ error: 'Erro ao deletar pet.' });
     }
   };
