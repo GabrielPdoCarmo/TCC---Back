@@ -10,5 +10,6 @@ router.get('/usuario/:usuario_id', PetController.getByUsuarioId);
 router.post('/', upload.single('foto'), PetController.create);
 router.put('/:id', upload.single('foto'), PetController.update);
 router.delete('/:id', PetController.delete); // <-- essa linha é ESSENCIAL
+router.put('/status/:id', PetController.updateStatus);
 
 export default router;

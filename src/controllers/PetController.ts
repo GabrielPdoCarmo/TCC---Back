@@ -290,6 +290,34 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
   }
+
+static updateStatus: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // O status_id é sempre 2 (não precisa vir no body)
+    const status_id = 2;
+
+    // Buscar o Pet pelo ID
+    const pet = await Pet.findByPk(id);
+    if (!pet) {
+      res.status(404).json({ error: 'Pet não encontrado.' });
+      return;
+    }
+
+    // Atualizar o status_id para 2
+    await pet.update({ status_id });
+
+    // Buscar o pet atualizado para retornar na resposta
+    const petAtualizado = await Pet.findByPk(id);
+
+    res.json(petAtualizado);
+  } catch (error) {
+    console.error('Erro ao atualizar o status do pet:', error);
+    res.status(500).json({ error: 'Erro ao atualizar o status do pet.' });
+  }
+};
+
   static delete: RequestHandler = async (req, res, next) => {
     try {
       const { id } = req.params;
