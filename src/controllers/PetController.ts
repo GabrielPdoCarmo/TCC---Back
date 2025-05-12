@@ -295,9 +295,6 @@ static updateStatus: RequestHandler = async (req: Request, res: Response, next: 
   try {
     const { id } = req.params;
 
-    // O status_id é sempre 2 (não precisa vir no body)
-    const status_id = 2;
-
     // Buscar o Pet pelo ID
     const pet = await Pet.findByPk(id);
     if (!pet) {
@@ -305,8 +302,23 @@ static updateStatus: RequestHandler = async (req: Request, res: Response, next: 
       return;
     }
 
-    // Atualizar o status_id para 2
-    await pet.update({ status_id });
+    let novoStatus: number;
+    
+    // Verificar status atual e definir o novo status
+    if (pet.status_id === 1) {
+      novoStatus = 2;
+    } else if (pet.status_id === 2) {
+      novoStatus = 3;
+    } else {
+      res.status(400).json({ 
+        error: 'Apenas pets com status 1 ou 2 podem ser atualizados.',
+        status_atual: pet.status_id
+      });
+      return;
+    }
+
+    // Atualizar para o novo status
+    await pet.update({ status_id: novoStatus });
 
     // Buscar o pet atualizado para retornar na resposta
     const petAtualizado = await Pet.findByPk(id);
@@ -317,7 +329,6 @@ static updateStatus: RequestHandler = async (req: Request, res: Response, next: 
     res.status(500).json({ error: 'Erro ao atualizar o status do pet.' });
   }
 };
-
   static delete: RequestHandler = async (req, res, next) => {
     try {
       const { id } = req.params;
