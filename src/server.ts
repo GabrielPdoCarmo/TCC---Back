@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Sequelize } from 'sequelize-typescript';
 
 import petRoutes from './routes/petRoutes';
+import myPetsRoutes from './routes/myPetsRouter';
 import estadoRoutes from './routes/estadoRoutes';
 import cidadeRoutes from './routes/cidadeRoutes';
 import usuarioRoutes from './routes/usuarioRoutes';
@@ -32,6 +33,7 @@ import { Favorito } from './models/favoritosModel';
 import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
 import { Sexo } from './models/sexoPetModel';
 import { Sexo_Usuario } from './models/sexoUsuarioModel';
+import { MyPets } from './models/mypetsModel';
 // import cors from 'cors';
 dotenv.config();
 
@@ -61,6 +63,7 @@ const sequelize = new Sequelize({
     PetDoencaDeficiencia,
     Sexo,
     Sexo_Usuario,
+    MyPets,
   ],
 });
 
@@ -93,6 +96,7 @@ app.use('/api/sexoUsuario', sexoUsuarioRoutes);
 app.use('/api/estados-cidades-json', cidades_estadosRoutes);
 app.use('/api/sexoPet', sexoRoutes);
 app.use('/api/pets-doencas',petDoencaDeficienciaRoutes);  
+app.use('/api/pets-meus', myPetsRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
