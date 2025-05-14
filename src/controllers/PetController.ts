@@ -305,8 +305,8 @@ export class PetController {
       // Verificar status atual e definir o novo status
       if (pet.status_id === 1) {
         novoStatus = 2;
-      } else if (pet.status_id === 2) {
-        novoStatus = 3;
+      } else if (pet.status_id === 3) {
+        novoStatus = 4;
       } else {
         res.status(400).json({
           error: 'Apenas pets com status 1 ou 2 podem ser atualizados.',
