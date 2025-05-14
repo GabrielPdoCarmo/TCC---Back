@@ -27,9 +27,6 @@ export class Pet extends Model {
   @Column({ type: DataType.STRING(255), allowNull: false })
   nome!: string;
 
-  @Column({ type: DataType.INTEGER, allowNull: false })
-  quantidade!: number;
-
   @ForeignKey(() => Raca)
   @Column({ type: DataType.INTEGER, allowNull: false })
   raca_id!: number;

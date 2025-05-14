@@ -74,7 +74,6 @@ export class PetController {
         sexo_id,
         rg_Pet = null,
         motivoDoacao,
-        quantidade,
         doencas,
       } = req.body;
 
@@ -144,7 +143,6 @@ export class PetController {
         status_id: 1, // Status padrão (1 = disponível)
         cidade_id: usuario.cidade_id,
         estado_id: cidade.estado_id,
-        quantidade,
         foto: fotoUrl, // Armazenar a URL da imagem (ou null caso não tenha imagem)
       });
 
@@ -291,44 +289,61 @@ export class PetController {
     }
   }
 
-static updateStatus: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id } = req.params;
+  static updateStatus: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
 
-    // Buscar o Pet pelo ID
-    const pet = await Pet.findByPk(id);
-    if (!pet) {
-      res.status(404).json({ error: 'Pet não encontrado.' });
-      return;
+      // Buscar o Pet pelo ID
+      const pet = await Pet.findByPk(id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      let novoStatus: number;
+
+      // Verificar status atual e definir o novo status
+      if (pet.status_id === 1) {
+        novoStatus = 2;
+      } else if (pet.status_id === 2) {
+        novoStatus = 3;
+      } else {
+        res.status(400).json({
+          error: 'Apenas pets com status 1 ou 2 podem ser atualizados.',
+          status_atual: pet.status_id
+        });
+        return;
+      }
+
+      // Atualizar para o novo status
+      await pet.update({ status_id: novoStatus });
+
+      // Buscar o pet atualizado para retornar na resposta
+      const petAtualizado = await Pet.findByPk(id);
+
+      res.json(petAtualizado);
+    } catch (error) {
+      console.error('Erro ao atualizar o status do pet:', error);
+      res.status(500).json({ error: 'Erro ao atualizar o status do pet.' });
     }
+  };
 
-    let novoStatus: number;
-    
-    // Verificar status atual e definir o novo status
-    if (pet.status_id === 1) {
-      novoStatus = 2;
-    } else if (pet.status_id === 2) {
-      novoStatus = 3;
-    } else {
-      res.status(400).json({ 
-        error: 'Apenas pets com status 1 ou 2 podem ser atualizados.',
-        status_atual: pet.status_id
+  static getByStatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const status_id = 2; // Status fixo, apenas status 2 é permitido
+
+      // Buscar todos os pets com o status especificado (status 2)
+      const pets = await Pet.findAll({
+        where: { status_id }
       });
-      return;
+
+      // Retornar a lista de pets (mesmo que seja vazia)
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error('Erro ao buscar pets por status:', error);
+      res.status(500).json({ error: 'Erro ao buscar pets por status.' });
     }
-
-    // Atualizar para o novo status
-    await pet.update({ status_id: novoStatus });
-
-    // Buscar o pet atualizado para retornar na resposta
-    const petAtualizado = await Pet.findByPk(id);
-
-    res.json(petAtualizado);
-  } catch (error) {
-    console.error('Erro ao atualizar o status do pet:', error);
-    res.status(500).json({ error: 'Erro ao atualizar o status do pet.' });
-  }
-};
+  };
   static delete: RequestHandler = async (req, res, next) => {
     try {
       const { id } = req.params;
