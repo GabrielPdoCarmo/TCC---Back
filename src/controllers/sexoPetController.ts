@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { Sexo } from '../models/sexoPetModel';
 
 export class SexoController {
-  static async getAll(req: Request, res: Response) {
+  static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const sexos = await Sexo.findAll();
       res.status(200).json(sexos);
@@ -12,11 +12,12 @@ export class SexoController {
     }
   }
 
-  static async getById(req: Request, res: Response) {
+  // Método para buscar por ID
+  static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const sexo = await Sexo.findByPk(req.params.id);
       if (!sexo) {
-        return res.status(404).json({ error: 'Sexo não encontrado.' });
+      res.status(404).json({ error: 'Sexo não encontrado.' });
       }
       res.status(200).json(sexo);
     } catch (error) {
