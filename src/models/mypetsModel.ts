@@ -13,7 +13,7 @@ export class MyPets extends Model {
 
   @ForeignKey(() => Usuario)
   @Column({ primaryKey: true, type: DataType.INTEGER, allowNull: false })
-  usuaria_id!: number;
+  usuario_id!: number;
 
   // 🔧 Associações
   @BelongsTo(() => Pet)
