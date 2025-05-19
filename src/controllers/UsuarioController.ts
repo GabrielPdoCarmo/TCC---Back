@@ -113,66 +113,92 @@ export class UsuarioController {
     }
   }
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const usuario = await Usuario.findByPk(Number(req.params.id));
-      if (!usuario) {
-        res.status(404).json({ error: 'Usuário não encontrado' });
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'ID de usuário inválido' });
+      return;
+    }
+    
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) {
+      res.status(404).json({ error: 'Usuário não encontrado' });
+      return;
+    }
+
+    // Define o caminho da foto atual
+    let fotoPath: string = usuario.foto;
+
+    // Verifica se veio imagem nova
+    if (req.file?.buffer) {
+      const fileName = `usuario_${id}_${Date.now()}.jpg`;
+      const filePath = `usuarios/${fileName}`;
+      const { data, error } = await supabase.storage
+        .from('usuarios')
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error('Erro ao enviar imagem:', error);
+        res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
         return;
       }
-  
-      // Define a URL padrão para o caso de não enviar uma foto nova
-      let fotoUrl: string = usuario.foto
-  
-      // Verifica se veio imagem nova
-      if (req.file?.buffer) {
-        const filePath = `usuarios/${usuario.nome}_${Date.now()}.jpg`;
-        const { data, error } = await supabase.storage
-          .from('usuarios')
-          .upload(filePath, req.file.buffer, {
-            contentType: req.file.mimetype,
-            upsert: true,
-          });
-  
-        if (error) {
-          console.error('Erro ao enviar imagem:', error);
-          res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
-          return;
-        }
-  
-        // Gerar URL assinada para bucket privado
-        const { data: signed } = await supabase.storage
-          .from('usuarios')
-          .createSignedUrl(data.path, 60 * 60); 
-  
-        fotoUrl = signed?.signedUrl ?? fotoUrl; // Se não obtiver a URL, mantém a padrão
-      }
-  
-      // Atualiza o usuário com os dados recebidos + nova foto
-      await usuario.update({
-        ...req.body,
-        foto: fotoUrl,
+
+      fotoPath = data.path;
+    }
+
+    // Extrair apenas os campos permitidos
+    const { nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
+    
+    // Atualiza o usuário com os dados recebidos + caminho da nova foto
+    await usuario.update({
+      nome,
+      sexo_id,
+      telefone,
+      email,
+      senha,
+      cpf,
+      cep,
+      foto: fotoPath,
+      estado_id,
+      cidade_id,
+    });
+
+    // Gerar URL assinada para a resposta
+    let fotoUrl = null;
+    if (fotoPath) {
+      const { data: signed } = await supabase.storage
+        .from('usuarios')
+        .createSignedUrl(fotoPath, 60 * 60);
+      fotoUrl = signed?.signedUrl;
+    }
+
+    // Retorna o usuário com a URL assinada para a foto
+    res.json({
+      ...usuario.toJSON(),
+      fotoUrl
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar usuário:', error);
+    
+    if (error instanceof UniqueConstraintError) {
+      res.status(400).json({
+        error: 'Dados duplicados',
+        message: 'Email ou CPF já em uso por outro usuário.',
       });
-  
-      res.json(usuario);
-    } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
-  
-      if (error instanceof UniqueConstraintError) {
-        res.status(400).json({
-          error: 'Dados duplicados',
-          message: 'Email ou CPF já em uso por outro usuário.',
-        });
-      } else if (error instanceof ValidationError) {
-        res.status(400).json({
-          error: 'Dados inválidos',
-          message: error.message,
-          details: error.errors.map((e) => ({ field: e.path, message: e.message })),
-        });
-      } else {
-        res.status(500).json({ error: 'Erro ao atualizar usuário.' });
-      }
+    } else if (error instanceof ValidationError) {
+      res.status(400).json({
+        error: 'Dados inválidos',
+        message: error.message,
+        details: error.errors.map((e) => ({ field: e.path, message: e.message })),
+      });
+    } else {
+      res.status(500).json({ error: 'Erro ao atualizar usuário.' });
     }
   }
+}
   
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

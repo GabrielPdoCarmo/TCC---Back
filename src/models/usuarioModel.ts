@@ -18,7 +18,7 @@ export class Usuario extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   sexo_id!: string;
 
-  @Column({ type: DataType.STRING(9), allowNull: false })
+  @Column({ type: DataType.STRING(11), allowNull: false })
   telefone!: string;
 
   @Column({ type: DataType.STRING(255), allowNull: false, unique: true })
