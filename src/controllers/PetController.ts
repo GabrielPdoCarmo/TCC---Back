@@ -50,7 +50,7 @@ export class PetController {
 
       // Buscar todos os pets associados ao usuário
       const pets = await Pet.findAll({
-        where: { usuario_id: usuario_id }
+        where: { usuario_id: usuario_id },
       });
 
       // Se não encontrou nenhum pet, retornar um array vazio com status 200
@@ -92,11 +92,9 @@ export class PetController {
           const fileBuffer = req.file.buffer;
 
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
-          const { data, error } = await supabase.storage
-            .from('pet-images')
-            .upload(filePath, fileBuffer, {
-              contentType: req.file.mimetype,
-            });
+          const { data, error } = await supabase.storage.from('pet-images').upload(filePath, fileBuffer, {
+            contentType: req.file.mimetype,
+          });
 
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
@@ -188,16 +186,45 @@ export class PetController {
 
       // Verificar se tem um arquivo de imagem
       let fotoUrl = dadosAtualizados.foto || pet.foto; // Mantém a foto atual se não for enviada nova
+
       if (req.file) {
         try {
+          // Se o pet já tiver uma foto e estamos fazendo upload de uma nova,
+          // devemos deletar a antiga do Supabase
+          if (pet.foto) {
+            try {
+              // Extrair o caminho do arquivo da URL
+              // A URL completa é algo como: https://xxxxx.supabase.co/storage/v1/object/public/pet-images/pets/nome_123456789.jpg
+              // E precisamos extrair: pets/nome_123456789.jpg
+
+              // Método 1: Se o formato da URL for consistente e tiver 'pet-images/' como parte do caminho
+              const urlParts = pet.foto.split('pet-images/');
+              if (urlParts.length > 1) {
+                const filePath = urlParts[1];
+
+                console.log('Tentando deletar imagem antiga:', filePath);
+
+                const { error: deleteError } = await supabase.storage.from('pet-images').remove([filePath]);
+
+                if (deleteError) {
+                  console.error('Erro ao deletar imagem antiga do Supabase:', deleteError);
+                } else {
+                  console.log('Imagem antiga deletada com sucesso');
+                }
+              }
+            } catch (deleteError) {
+              console.error('Erro ao tentar deletar imagem antiga:', deleteError);
+              // Continuar mesmo se falhar a deleção da imagem antiga
+            }
+          }
+
+          // Fazer upload da nova imagem
           const fileBuffer = req.file.buffer;
           const filePath = `pets/${pet.nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
-          const { data, error } = await supabase.storage
-            .from('pet-images')
-            .upload(filePath, fileBuffer, {
-              contentType: req.file.mimetype,
-            });
+          const { data, error } = await supabase.storage.from('pet-images').upload(filePath, fileBuffer, {
+            contentType: req.file.mimetype,
+          });
 
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
@@ -236,8 +263,7 @@ export class PetController {
                 where: { nome: doenca },
               });
               doencaId = doencaObj.id;
-            }
-            else {
+            } else {
               return null; // Ignorar tipos inválidos
             }
 
@@ -246,7 +272,7 @@ export class PetController {
         );
 
         // Filtrar valores nulos
-        const doencasIds = doencasProcessadas.filter(id => id !== null) as number[];
+        const doencasIds = doencasProcessadas.filter((id) => id !== null) as number[];
 
         // IMPORTANTE: Em vez de verificar e criar/atualizar individualmente,
         // vamos remover todas e adicionar apenas as que foram enviadas
@@ -254,17 +280,17 @@ export class PetController {
 
         // 1. Remover todas as associações existentes
         await PetDoencaDeficiencia.destroy({
-          where: { pet_id: pet.id }
+          where: { pet_id: pet.id },
         });
 
         // 2. Criar novas associações com os IDs processados
         if (doencasIds.length > 0) {
           await Promise.all(
-            doencasIds.map(doencaId =>
+            doencasIds.map((doencaId) =>
               PetDoencaDeficiencia.create({
                 pet_id: pet.id,
                 doencaDeficiencia_id: doencaId,
-                possui: true
+                possui: true,
               })
             )
           );
@@ -277,9 +303,9 @@ export class PetController {
           {
             model: DoencasDeficiencias,
             as: 'doencasDeficiencias',
-            through: { attributes: ['possui'] }
-          }
-        ]
+            through: { attributes: ['possui'] },
+          },
+        ],
       });
 
       res.json(petAtualizado);
@@ -287,7 +313,7 @@ export class PetController {
       console.error('Erro ao atualizar o pet:', error);
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
-  }
+  };
 
   static updateStatus: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -310,7 +336,7 @@ export class PetController {
       } else {
         res.status(400).json({
           error: 'Apenas pets com status 1 ou 2 podem ser atualizados.',
-          status_atual: pet.status_id
+          status_atual: pet.status_id,
         });
         return;
       }
@@ -334,7 +360,7 @@ export class PetController {
 
       // Buscar todos os pets com o status especificado (status 2)
       const pets = await Pet.findAll({
-        where: { status_id }
+        where: { status_id },
       });
 
       // Retornar a lista de pets (mesmo que seja vazia)
@@ -348,23 +374,61 @@ export class PetController {
     try {
       const { id } = req.params;
 
-      // Verificar se o pet existe
+      // Verificar se o pet existe e recuperar seus dados, incluindo a URL da imagem
       const pet = await Pet.findByPk(id);
       if (!pet) {
         res.status(404).json({ message: 'Pet não encontrado.' });
         return;
       }
 
+      // Obter a referência da imagem antes de deletar o pet
+      const petData = pet.get({ plain: true });
+      const imageUrl = petData.imageUrl || petData.image_url; // Considere os dois possíveis nomes de campo
+
+      // Extrair o caminho/nome do arquivo da URL da imagem (se existir)
+      let imagePath = null;
+      if (imageUrl) {
+        // Assumindo que o URL segue um padrão como ".../storage/v1/object/bucket-name/filename.jpg"
+        // Extraímos apenas o filename.jpg
+        imagePath = imageUrl.split('/').pop();
+      }
+
       // Primeiro remover as associações com doenças/deficiências
       // para evitar problemas de chaves estrangeiras
       await PetDoencaDeficiencia.destroy({
-        where: { pet_id: id }
+        where: { pet_id: id },
       });
 
       // Agora podemos deletar o pet com segurança
       await pet.destroy();
 
-      res.status(200).json({ message: 'Pet deletado com sucesso.' });
+      // Se tiver uma imagem, deletá-la do Supabase Storage
+      if (imagePath) {
+        try {
+          const { supabase } = require('../config/supabaseClient'); // Ajuste o caminho conforme necessário
+
+          // Assumindo que suas imagens estão em um bucket chamado 'pets'
+          const { error } = await supabase.storage
+            .from('pets') // Use o nome correto do seu bucket
+            .remove([imagePath]);
+
+          if (error) {
+            console.error('Erro ao deletar imagem do Supabase:', error);
+            res.status(200).json({
+              message: 'Pet deletado com sucesso, mas houve um erro ao deletar a imagem.',
+            });
+            return;
+          }
+        } catch (imageError) {
+          console.error('Exceção ao tentar deletar imagem:', imageError);
+          res.status(200).json({
+            message: 'Pet deletado com sucesso, mas houve um erro ao deletar a imagem.',
+          });
+          return;
+        }
+      }
+
+      res.status(200).json({ message: 'Pet e imagem associada deletados com sucesso.' });
     } catch (error) {
       console.error('Erro ao deletar pet:', error);
       res.status(500).json({ error: 'Erro ao deletar pet.' });
