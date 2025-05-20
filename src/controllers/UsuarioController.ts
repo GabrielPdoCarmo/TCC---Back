@@ -79,7 +79,40 @@ export class UsuarioController {
 
         cidade_id = cidade.id;
       }
+
       cep = cep || null; // Se o CEP não for informado, atribui null
+
+      // Processamento de imagem (similar ao criar do pet)
+      let fotoUrl = null;
+
+      if (req.file) {
+        try {
+          console.log('Arquivo presente, tamanho:', req.file.size);
+          console.log('Tipo de arquivo:', req.file.mimetype);
+
+          const fileBuffer = req.file.buffer;
+
+          // Criar um nome de arquivo único baseado no nome do usuário e timestamp
+          const filePath = `usuarios/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+          const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
+            contentType: req.file.mimetype,
+          });
+
+          if (error) {
+            console.error('Erro ao fazer upload da imagem no Supabase:', error);
+          } else if (data?.path) {
+            const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
+            fotoUrl = publicData?.publicUrl ?? null;
+            console.log('URL da imagem gerada:', fotoUrl);
+          }
+        } catch (fileError) {
+          console.error('Erro ao processar o arquivo:', fileError);
+        }
+      } else {
+        console.log('Nenhum arquivo foi enviado');
+      }
+
+      // Criar o usuário com a foto (se houver)
       const usuario = await Usuario.create({
         nome,
         sexo_id,
@@ -88,11 +121,16 @@ export class UsuarioController {
         senha: senhaHash,
         cpf,
         cep,
+        foto: fotoUrl, // Adiciona o caminho da foto
         estado_id,
         cidade_id,
       });
 
-      return res.status(201).json(usuario); // Alteração: 'return' adicionada para o tipo Promise<Response>
+      // Retorna o usuário criado junto com a URL pública da foto (se houver)
+      return res.status(201).json({
+        ...usuario.toJSON(),
+        fotoUrl,
+      });
     } catch (error) {
       console.error('Erro ao criar usuário:', error);
 
@@ -126,60 +164,11 @@ export class UsuarioController {
         return;
       }
 
-      // Define o caminho da foto atual
-      let fotoPath: string = usuario.foto;
+      // Desestruturar e extrair os campos permitidos (incluindo foto)
+      const { foto: bodyFoto, nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
 
-      // Verifica se veio uma URL local no body (sem arquivo)
-      const bodyFoto = req.body.foto;
-      const isLocalImage = bodyFoto && typeof bodyFoto === 'string' && bodyFoto.startsWith('file:///');
-
-      // Se for uma URL local sem novo arquivo, mantém a foto existente
-      if (isLocalImage && !req.file) {
-        console.log('URL local detectada sem novo arquivo:', bodyFoto);
-        // Mantém a foto atual
-        console.log('Mantendo a foto atual:', fotoPath);
-      }
-      // Verifica se veio imagem nova
-      else if (req.file?.buffer) {
-        // Se o usuário já tem foto no Supabase, excluir a antiga
-        if (fotoPath && !isLocalImage) {
-          try {
-            console.log('Tentando deletar imagem antiga do usuário:', fotoPath);
-            const { error: deleteError } = await supabase.storage.from('usuarios').remove([fotoPath]);
-
-            if (deleteError) {
-              console.error('Erro ao deletar imagem antiga:', deleteError);
-            } else {
-              console.log('Imagem antiga deletada com sucesso');
-            }
-          } catch (deleteError) {
-            console.error('Erro ao tentar deletar imagem antiga:', deleteError);
-          }
-        }
-
-        // Upload da nova imagem
-        const fileName = `usuario_${id}_${Date.now()}.jpg`;
-        const filePath = `usuarios/${fileName}`;
-        const { data, error } = await supabase.storage.from('usuarios').upload(filePath, req.file.buffer, {
-          contentType: req.file.mimetype,
-          upsert: true,
-        });
-
-        if (error) {
-          console.error('Erro ao enviar imagem:', error);
-          res.status(500).json({ error: 'Erro ao fazer upload da imagem.' });
-          return;
-        }
-
-        fotoPath = data.path;
-        console.log('Nova imagem enviada com sucesso:', fotoPath);
-      }
-
-      // Extrair apenas os campos permitidos
-      const { nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
-
-      // Atualiza o usuário com os dados recebidos + caminho da nova foto
-      await usuario.update({
+      // Incluir foto no objeto dadosAtualizados
+      const dadosAtualizados = {
         nome,
         sexo_id,
         telefone,
@@ -187,17 +176,93 @@ export class UsuarioController {
         senha,
         cpf,
         cep,
-        foto: fotoPath,
         estado_id,
         cidade_id,
-      });
+        foto: bodyFoto, // Adicionar a foto aqui
+      };
 
-      // Gerar URL pública para a resposta
-      let fotoUrl = null;
-      if (fotoPath) {
-        const { data: publicData } = supabase.storage.from('usuarios').getPublicUrl(fotoPath);
-        fotoUrl = publicData?.publicUrl;
+      // Inicializar a URL da foto com a existente ou a do body
+      let fotoUrl = bodyFoto || usuario.foto; // Mantém a foto atual se não for enviada nova
+
+      // Verificar se a URL da foto é local (começa com file:///)
+      const isLocalImage = typeof fotoUrl === 'string' && fotoUrl.startsWith('file:///');
+
+      // Se for uma URL local, precisamos verificar como proceder
+      if (isLocalImage && !req.file) {
+        console.log('URL local detectada sem novo arquivo de upload, essa URL não pode ser usada:', fotoUrl);
+
+        // Duas opções aqui:
+        // 1. Manter a URL anterior do Supabase (se existir)
+        // 2. Informar erro ao cliente
+
+        // Opção 1: Manter a URL anterior
+        if (usuario.foto && usuario.foto.includes('supabase')) {
+          console.log('Mantendo a URL anterior do Supabase:', usuario.foto);
+          fotoUrl = usuario.foto;
+        } else {
+          // Opção 2: Informar erro
+          res.status(400).json({
+            error:
+              'A URL da imagem é um caminho local e não pode ser usada no servidor. Por favor, envie o arquivo novamente.',
+          });
+          return;
+        }
       }
+
+      // Se tiver arquivo de upload, processar normalmente
+      if (req.file) {
+        try {
+          // Se o usuário já tiver uma foto e estamos fazendo upload de uma nova,
+          // devemos deletar a antiga do Supabase APENAS se for uma URL do Supabase
+          const usuarioFoto = usuario.foto;
+          if (usuarioFoto && usuarioFoto.includes('supabase')) {
+            console.log('Tentando deletar imagem antiga do Supabase ao atualizar usuário:', usuarioFoto);
+
+            const urlParts = usuarioFoto.split('user-images/');
+            if (urlParts.length > 1) {
+              const filePath = urlParts[1].split('?')[0]; // Extrair caminho correto
+              console.log('Caminho extraído para deleção:', filePath);
+
+              const { error: deleteError } = await supabase.storage.from('user-images').remove([filePath]);
+
+              if (deleteError) {
+                console.error('Erro ao deletar imagem antiga do Supabase:', deleteError);
+              } else {
+                console.log('Imagem antiga deletada com sucesso durante atualização');
+              }
+            } else {
+              console.error('Formato de URL inesperado, não foi possível extrair caminho para deleção:', usuarioFoto);
+            }
+          }
+
+          // Usar o nome atualizado do usuário se disponível
+          const nomeUsuario = nome || usuario.nome;
+
+          // Fazer upload da nova imagem
+          const fileBuffer = req.file.buffer;
+          const filePath = `usuarios/${nomeUsuario.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+
+          const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
+            contentType: req.file.mimetype,
+          });
+
+          if (error) {
+            console.error('Erro ao fazer upload da imagem no Supabase:', error);
+          } else if (data?.path) {
+            const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
+            fotoUrl = publicData?.publicUrl ?? null;
+            console.log('Nova URL da imagem gerada:', fotoUrl);
+          }
+        } catch (fileError) {
+          console.error('Erro ao processar o arquivo:', fileError);
+        }
+      }
+
+      // Adicionar a URL da foto aos dados atualizados
+      dadosAtualizados.foto = fotoUrl;
+
+      // Atualizar o usuário com os dados recebidos
+      await usuario.update(dadosAtualizados);
 
       // Retorna o usuário com a URL pública para a foto
       res.json({
@@ -223,7 +288,6 @@ export class UsuarioController {
       }
     }
   }
-
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -239,7 +303,7 @@ export class UsuarioController {
       if (fotoPath && !fotoPath.startsWith('file:///')) {
         try {
           console.log('Tentando deletar imagem do usuário:', fotoPath);
-          const { error: deleteError } = await supabase.storage.from('usuarios').remove([fotoPath]);
+          const { error: deleteError } = await supabase.storage.from('user-images').remove([fotoPath]);
 
           if (deleteError) {
             console.error('Erro ao deletar imagem do usuário:', deleteError);
