@@ -8,6 +8,7 @@ import bcrypt from 'bcrypt';
 import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
 const saltRounds = 10; // número de rounds de salt
 import { cpf } from 'cpf-cnpj-validator';
+import { Pet } from '../models/petModel';
 export class UsuarioController {
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -354,6 +355,24 @@ export class UsuarioController {
         return;
       }
 
+      // Verificar se o usuário tem pets vinculados
+      const petCount = await Pet.count({
+        where: {
+          usuario_id: id,
+        },
+      });
+
+      if (petCount > 0) {
+        res.status(400).json({
+          error: 'Não é possível excluir a conta',
+          message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
+            petCount > 1 ? 's' : ''
+          }. Remova ou transfira esses pets antes de excluir sua conta.`,
+          success: false,
+        });
+        return;
+      }
+
       // Verificar se o usuário tem uma foto para deletar
       const fotoPath = usuario.foto;
       if (fotoPath && !fotoPath.startsWith('file:///')) {
@@ -373,7 +392,10 @@ export class UsuarioController {
 
       // Deletar o usuário
       await usuario.destroy();
-      res.status(204).send();
+      res.json({
+        message: 'Usuário excluído com sucesso',
+        success: true,
+      });
     } catch (error) {
       console.error('Erro ao deletar usuário:', error);
 
@@ -382,10 +404,14 @@ export class UsuarioController {
         res.status(400).json({
           error: 'Não foi possível excluir',
           message: 'Este usuário possui registros relacionados e não pode ser excluído.',
+          success: false,
         });
       } else {
         // Outros erros
-        res.status(500).json({ error: 'Erro ao deletar usuário.' });
+        res.status(500).json({
+          error: 'Erro ao deletar usuário.',
+          success: false,
+        });
       }
     }
   }
