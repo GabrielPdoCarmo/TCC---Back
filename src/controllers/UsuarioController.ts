@@ -7,7 +7,7 @@ import { Cidade } from '../models/cidadeModel';
 import bcrypt from 'bcrypt';
 import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
 const saltRounds = 10; // número de rounds de salt
-
+import { cpf } from 'cpf-cnpj-validator';
 export class UsuarioController {
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -34,9 +34,31 @@ export class UsuarioController {
   }
 
   static async create(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    let { nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
+    let { nome, sexo_id, telefone, email, senha, cpf: cpfInput, cep, estado_id, cidade_id } = req.body;
 
     try {
+      // Validação de CPF - adicionar aqui
+      if (cpfInput) {
+        // Remove caracteres não numéricos
+        const cpfNumerico = cpfInput.replace(/\D/g, '');
+
+        // Verifica se o CPF é válido
+        if (!cpf.isValid(cpfNumerico)) {
+          return res.status(400).json({
+            error: 'CPF inválido',
+            message: 'O CPF informado não é válido.',
+          });
+        }
+
+        // Formata o CPF antes de salvar (opcional)
+        cpfInput = cpf.format(cpfNumerico);
+      } else {
+        return res.status(400).json({
+          error: 'CPF obrigatório',
+          message: 'O CPF é obrigatório para cadastro.',
+        });
+      }
+
       // Verificar se a senha foi fornecida
       if (!senha) {
         return res.status(400).json({ error: 'Senha é obrigatória.' });
@@ -119,7 +141,7 @@ export class UsuarioController {
         telefone,
         email,
         senha: senhaHash,
-        cpf,
+        cpf: cpfInput,
         cep,
         foto: fotoUrl, // Adiciona o caminho da foto
         estado_id,
@@ -165,8 +187,34 @@ export class UsuarioController {
       }
 
       // Desestruturar e extrair os campos permitidos
-      const { foto: bodyFoto, nome, sexo_id, telefone, email, senha, cpf, cep, estado_id, cidade_id } = req.body;
+      let {
+        foto: bodyFoto,
+        nome,
+        sexo_id,
+        telefone,
+        email,
+        senha,
+        cpf: cpfInput,
+        cep,
+        estado_id,
+        cidade_id,
+      } = req.body;
+      if (cpfInput !== undefined && cpfInput !== null) {
+        // Remove caracteres não numéricos
+        const cpfNumerico = cpfInput.replace(/\D/g, '');
 
+        // Verifica se o CPF é válido
+        if (!cpf.isValid(cpfNumerico)) {
+          res.status(400).json({
+            error: 'CPF inválido',
+            message: 'O CPF informado não é válido.',
+          });
+          return;
+        }
+
+        // Formata o CPF antes de salvar (opcional)
+        cpfInput = cpf.format(cpfNumerico);
+      }
       // Debug: Mostrar valores recebidos
       console.log('Valores recebidos do cliente:', {
         nome,
@@ -174,7 +222,7 @@ export class UsuarioController {
         telefone,
         email,
         senha: senha ? '[SENHA RECEBIDA]' : '[SEM SENHA]',
-        cpf,
+        cpf: cpfInput,
         cep,
         estado_id: estado_id || 'não informado',
         cidade_id: cidade_id || 'não informado',
@@ -197,7 +245,7 @@ export class UsuarioController {
         sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
         telefone,
         email,
-        cpf,
+        cpf: cpfInput,
         cep: cep !== undefined && cep !== null ? cep : usuario.cep,
         estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
         cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
@@ -232,7 +280,7 @@ export class UsuarioController {
         nome: usuario.nome,
         estado_id: usuario.estado_id,
         cidade_id: usuario.cidade_id,
-        cep: usuario.cep, // Adicionado para depuração  
+        cep: usuario.cep, // Adicionado para depuração
       });
 
       // Imprimir a senha criptografada para depuração
