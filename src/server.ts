@@ -34,6 +34,7 @@ import { PetDoencaDeficiencia } from './models/petDoencaDeficienciaModel';
 import { Sexo } from './models/sexoPetModel';
 import { Sexo_Usuario } from './models/sexoUsuarioModel';
 import { MyPets } from './models/mypetsModel';
+import { RecuperacaoSenha } from './models/RecuperacaoSenhaModel';
 // import cors from 'cors';
 dotenv.config();
 
@@ -64,6 +65,7 @@ const sequelize = new Sequelize({
     Sexo,
     Sexo_Usuario,
     MyPets,
+    RecuperacaoSenha,
   ],
 });
 
@@ -95,7 +97,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sexoUsuario', sexoUsuarioRoutes);
 app.use('/api/estados-cidades-json', cidades_estadosRoutes);
 app.use('/api/sexoPet', sexoRoutes);
-app.use('/api/pets-doencas',petDoencaDeficienciaRoutes);  
+app.use('/api/pets-doencas', petDoencaDeficienciaRoutes);
 app.use('/api/pets-meus', myPetsRoutes);
 
 // Middleware para tratamento de erros
@@ -126,6 +128,3 @@ app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
   console.log(`🌐 Acesse via: http://${localIP}:${PORT}`);
 });
-
-
-

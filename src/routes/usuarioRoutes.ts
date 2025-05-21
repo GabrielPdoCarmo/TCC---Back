@@ -15,3 +15,7 @@ router.put('/:id', upload.single('foto'), (req, res, next) => {
 router.delete('/:id', UsuarioController.delete);
 router.get('/:id', UsuarioController.getById); // <-- Corrigido e adicionado
 export default router;
+
+router.get('/email/:email', UsuarioController.getByEmail); // <-- Corrigido e adicionado
+router.post('/recuperar-senha/sendRecoveryCode', UsuarioController.sendRecoveryCode);
+router.post('/recuperar-senha/checkCode', UsuarioController.checkCode);

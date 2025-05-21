@@ -9,6 +9,9 @@ import { supabase } from '../api/supabaseClient'; // certifique-se que esse clie
 const saltRounds = 10; // número de rounds de salt
 import { cpf } from 'cpf-cnpj-validator';
 import { Pet } from '../models/petModel';
+import { RecuperacaoSenha } from '../models/RecuperacaoSenhaModel';
+import nodemailer from 'nodemailer';
+import { Op } from 'sequelize';
 export class UsuarioController {
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -31,6 +34,40 @@ export class UsuarioController {
     } catch (error) {
       console.error('Erro ao buscar usuário:', error);
       res.status(500).json({ error: 'Erro ao buscar usuário.' });
+    }
+  }
+
+  static async getByEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Mudança aqui - usar req.params.email em vez de req.query.email
+      const email = req.params.email;
+
+      // Verificar se o email foi fornecido
+      if (!email) {
+        res.status(400).json({ error: 'E-mail não fornecido' });
+        return;
+      }
+
+      console.log('Buscando usuário pelo email:', email);
+
+      const usuario = await Usuario.findOne({
+        where: {
+          email: email,
+        },
+      });
+
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado' });
+        return;
+      }
+
+      res.json(usuario);
+    } catch (error) {
+      console.error('Erro ao buscar usuário:', error);
+      res.status(500).json({
+        error: 'Erro ao buscar usuário.',
+        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+      });
     }
   }
 
@@ -173,6 +210,7 @@ export class UsuarioController {
       }
     }
   }
+
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -367,7 +405,7 @@ export class UsuarioController {
           error: 'Não é possível excluir a conta',
           message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
             petCount > 1 ? 's' : ''
-          }. Remova ou transfira esses pets antes de excluir sua conta.`,
+          }. Remova antes de excluir sua conta.`,
           success: false,
         });
         return;
@@ -413,6 +451,141 @@ export class UsuarioController {
           success: false,
         });
       }
+    }
+  }
+
+  private static gerarCodigoAleatorio(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  static async sendRecoveryCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+
+      // Verificar se o email foi fornecido
+      if (!email) {
+        res.status(400).json({ error: 'Email é obrigatório' });
+        return;
+      }
+
+      // Verificar se o email existe no banco de dados
+      const usuario = await Usuario.findOne({
+        where: { email },
+      });
+
+      if (!usuario) {
+        res.status(404).json({ error: 'Email não encontrado em nossa base de dados' });
+        return;
+      }
+
+      // Gerar um código aleatório de 6 dígitos
+      const codigo = UsuarioController.gerarCodigoAleatorio();
+
+      // Definir prazo de expiração (4 minutos a partir de agora)
+      const expiracao = new Date();
+      expiracao.setMinutes(expiracao.getMinutes() + 4);
+
+      // Primeiro, invalidar qualquer código existente para este usuário
+      await RecuperacaoSenha.update({ expirado: true }, { where: { usuario_id: usuario.id, expirado: false } });
+
+      // Criar um novo registro de código de recuperação
+      await RecuperacaoSenha.create({
+        usuario_id: usuario.id,
+        email: usuario.email,
+        codigo,
+        expiracao,
+        expirado: false,
+      });
+
+      // Configurar o transportador de email
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: Number(process.env.EMAIL_PORT) || 587,
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      // Configurar o email
+      const mailOptions = {
+        from: `"PetsUp" <${process.env.EMAIL_USER}>`,
+        to: usuario.email,
+        subject: 'Código de Recuperação de Senha - PetsUp',
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2>Recuperação de Senha</h2>
+          <p>Olá ${usuario.nome},</p>
+          <p>Você solicitou a recuperação de senha para sua conta PetsUp.</p>
+          <p>Seu código de verificação é:</p>
+          <h1 style="font-size: 36px; text-align: center; letter-spacing: 5px; margin: 20px 0; padding: 10px; background-color: #f5f5f5; border-radius: 4px;">${codigo}</h1>
+          <p>Este código é válido por 4 minutos.</p>
+          <p>Se você não solicitou esta recuperação de senha, por favor ignore este e-mail.</p>
+          <p>Atenciosamente,<br>Equipe PetsUp</p>
+        </div>
+      `,
+      };
+
+      // Enviar o email
+      await transporter.sendMail(mailOptions);
+
+      // Retornar sucesso
+      res.status(200).json({
+        success: true,
+        message: 'Código enviado com sucesso para o email cadastrado!',
+        usuarioId: usuario.id,
+      });
+    } catch (error) {
+      console.error('Erro ao enviar código de recuperação:', error);
+      res.status(500).json({
+        error: 'Erro ao enviar código de recuperação.',
+        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+      });
+    }
+  }
+
+  static async checkCode(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, codigo } = req.body;
+
+      // Verificar se email e código foram fornecidos
+      if (!email || !codigo) {
+        res.status(400).json({ error: 'Email e código são obrigatórios' });
+        return;
+      }
+
+      // Buscar a entrada de recuperação mais recente não expirada
+      const recuperacao = await RecuperacaoSenha.findOne({
+        where: {
+          email,
+          codigo,
+          expirado: false,
+          expiracao: { [Op.gt]: new Date() }, // Verifica se o código ainda não expirou
+        },
+        order: [['createdAt', 'DESC']],
+      });
+
+      if (!recuperacao) {
+        res.status(400).json({ error: 'Código inválido ou expirado' });
+        return;
+      }
+
+      // Código válido, marcar como usado
+      await recuperacao.update({ expirado: true });
+
+      // Retornar sucesso
+      res.status(200).json({
+        success: true,
+        message: 'Código verificado com sucesso!',
+        usuarioId: recuperacao.usuario_id,
+      });
+    } catch (error) {
+      console.error('Erro ao verificar código:', error);
+      res.status(500).json({
+        error: 'Erro ao verificar código.',
+        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+      });
     }
   }
 }
