@@ -6,7 +6,12 @@ import { Usuario } from '../models/usuarioModel';
 export class FavoritosController {
   static async create(req: Request, res: Response): Promise<void> {
     try {
-      const { usuario_id, pet_id } = req.body;
+      // Obter o pet_id da URL
+      // No método create
+      const { pet_id, usuario_id } = req.params;
+
+      // Alternativa: se não tiver middleware de autenticação:
+      // const { usuario_id } = req.params; ou req.body;
 
       // Validação de usuário
       const usuario = await Usuario.findByPk(usuario_id);
@@ -37,7 +42,6 @@ export class FavoritosController {
       res.status(500).json({ error: 'Erro ao adicionar aos favoritos.' });
     }
   }
-
   static async getByUserId(req: Request, res: Response): Promise<void> {
     try {
       const { usuario_id } = req.params;
@@ -63,8 +67,8 @@ export class FavoritosController {
 
   static async delete(req: Request, res: Response): Promise<void> {
     try {
-      const { usuario_id, pet_id } = req.params;
-
+      // Obter o pet_id da URL
+      const { pet_id, usuario_id } = req.params;
       // Validação de usuário
       const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
@@ -91,6 +95,33 @@ export class FavoritosController {
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao remover dos favoritos.' });
+    }
+  }
+
+  static async checkFavorito(req: Request, res: Response): Promise<void> {
+    try {
+      const { usuario_id, pet_id } = req.params;
+
+      // Validação de usuário
+      const usuario = await Usuario.findByPk(usuario_id);
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+
+      // Validação de pet
+      const pet = await Pet.findByPk(pet_id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      const favorito = await Favorito.findOne({ where: { usuario_id, pet_id } });
+
+      res.json({ isFavorito: !!favorito });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao verificar favorito.' });
     }
   }
 }
