@@ -32,6 +32,138 @@ export class PetController {
     }
   };
 
+  static getByNamePet: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { nome } = req.params;
+
+      // Verificar se o nome foi fornecido
+      if (!nome) {
+        res.status(400).json({ error: 'Nome do pet não fornecido.' });
+        return;
+      }
+
+      // Buscar o pet pelo nome
+      const pet = await Pet.findOne({
+        where: { nome },
+      });
+
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      res.status(200).json(pet);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pet pelo nome.' });
+    }
+  };
+  static getByRacaId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { raca_id } = req.params;
+      // Verificar se o ID da raça foi fornecido
+      if (!raca_id) {
+        res.status(400).json({ error: 'ID da raça não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à raça
+      const pets = await Pet.findAll({
+        where: { raca_id: raca_id },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta raça.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por raça.' });
+    }
+  };
+  static getByEspecieId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { especie_id } = req.params;
+      // Verificar se o ID da espécie foi fornecido
+      if (!especie_id) {
+        res.status(400).json({ error: 'ID da espécie não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à espécie
+      const pets = await Pet.findAll({
+        where: { especie_id: especie_id },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta espécie.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por espécie.' });
+    }
+  };
+  static getByCidadeId_EstadoId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { cidade_id, estado_id } = req.params;
+      // Verificar se o ID da cidade e do estado foram fornecidos
+      if (!cidade_id || !estado_id) {
+        res.status(400).json({ error: 'ID da cidade ou do estado não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à cidade e ao estado
+      const pets = await Pet.findAll({
+        where: {
+          cidade_id: cidade_id,
+          estado_id: estado_id,
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta cidade e estado.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por cidade e estado.' });
+    }
+  };
+
+  static getByFaixaEtariaId_Idade: RequestHandler = async (req: Request, res: Response, next: NextFunction) => { 
+    try {
+      const { faixa_etaria_id, idade } = req.params;
+      // Verificar se o ID da faixa etária e a idade foram fornecidos
+      if (!faixa_etaria_id || !idade) {
+        res.status(400).json({ error: 'ID da faixa etária ou idade não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à faixa etária e idade
+      const pets = await Pet.findAll({
+        where: {
+          faixa_etaria_id: faixa_etaria_id,
+          idade: idade,
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta faixa etária e idade.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por faixa etária e idade.' });
+    }
+  }
+
   static getByUsuarioId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { usuario_id } = req.params;
