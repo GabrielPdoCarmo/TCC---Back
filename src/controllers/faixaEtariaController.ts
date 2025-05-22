@@ -45,4 +45,16 @@ export class FaixaEtariaController {
       res.status(400).json({ error: 'Erro ao atualizar faixa etária' });
     }
   }
+
+  static async getByEspecieId(req: Request, res: Response): Promise<void> {
+    try {
+      const especieId = Number(req.params.especie_id);
+      const faixas = await FaixaEtaria.findAll({
+        where: { especie_id: especieId },
+      });
+      res.json(faixas);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar faixas etárias por espécie' });
+    }
+  }
 }
