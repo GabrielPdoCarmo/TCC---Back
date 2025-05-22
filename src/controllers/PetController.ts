@@ -108,9 +108,9 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pets por espécie.' });
     }
   };
-  static getByCidadeId_EstadoId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+  static getByEstadoId_CidadeId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { cidade_id, estado_id } = req.params;
+      const { estado_id, cidade_id } = req.params;
       // Verificar se o ID da cidade e do estado foram fornecidos
       if (!cidade_id || !estado_id) {
         res.status(400).json({ error: 'ID da cidade ou do estado não fornecido.' });
