@@ -43,7 +43,7 @@ export class PetController {
       }
 
       // Buscar o pet pelo nome
-      const pet = await Pet.findOne({
+      const pet = await Pet.findAll({
         where: { nome },
       });
 
