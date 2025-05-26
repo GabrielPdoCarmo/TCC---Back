@@ -7,6 +7,19 @@ import { Cidade } from '../models/cidadeModel';
 import { supabase } from '../api/supabaseClient';
 
 export class PetController {
+  // ✅ Função helper para sanitizar rg_Pet
+  private static sanitizeRgPet(value: any): string | null {
+    if (!value || value === '' || (typeof value === 'string' && value.trim() === '')) {
+      return null; // ✅ Converte string vazia para NULL
+    }
+    
+    // Remove formatação (pontos, traços, espaços)
+    const cleaned = value.toString().replace(/[^0-9a-zA-Z]/g, '');
+    
+    // Se após limpeza ficar vazio, retorna null
+    return cleaned === '' ? null : cleaned;
+  }
+
   // Funções existentes mantidas...
   static getAll: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -257,8 +270,8 @@ export class PetController {
         return;
       }
 
-      // Remover formatação do RG (pontos, traços, espaços e outros caracteres não numéricos)
-      const rgSemFormatacao = rg_Pet ? rg_Pet.replace(/[^0-9a-zA-Z]/g, '') : null;
+      // ✅ SANITIZAR RG_PET - converter string vazia para null
+      const rgSanitizado = PetController.sanitizeRgPet(rg_Pet);
 
       // Criar o novo pet com os dados recebidos e a URL da imagem
       const novoPet = await Pet.create({
@@ -269,7 +282,7 @@ export class PetController {
         faixa_etaria_id,
         usuario_id,
         sexo_id,
-        rg_Pet: rgSemFormatacao, // Salvar RG sem formatação
+        rg_Pet: rgSanitizado, // ✅ Usar o valor sanitizado
         motivoDoacao,
         status_id: 1, // Status padrão (1 = disponível)
         cidade_id: usuario.cidade_id,
@@ -305,8 +318,7 @@ export class PetController {
     }
   };
 
-  // Correção para o método update
-
+  // ✅ CORREÇÃO PRINCIPAL: Método update com sanitização do rg_Pet
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
@@ -317,6 +329,18 @@ export class PetController {
       if (!pet) {
         res.status(404).json({ error: 'Pet não encontrado.' });
         return;
+      }
+
+      // ✅ SANITIZAR RG_PET se foi enviado nos dados
+      if ('rg_Pet' in dadosAtualizados) {
+        dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
+        console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
+      }
+
+      // ✅ SANITIZAR RG_PET se foi enviado nos dados
+      if ('rg_Pet' in dadosAtualizados) {
+        dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
+        console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
       }
 
       // Verificar se tem um arquivo de imagem
@@ -398,7 +422,7 @@ export class PetController {
       // Adicionar a URL da foto aos dados atualizados
       dadosAtualizados.foto = fotoUrl;
 
-      // Atualizar o pet com os dados recebidos
+      // ✅ ATUALIZAR COM DADOS SANITIZADOS
       await pet.update(dadosAtualizados);
 
       // Resto do código permanece o mesmo...

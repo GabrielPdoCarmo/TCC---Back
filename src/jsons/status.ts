@@ -1,11 +1,11 @@
 export const status = [
   {
     id: 1,
-    nome: 'Em Adoção',
+    nome: 'Pendente',
   },
   {
     id: 2,
-    nome: 'Para Adoção',
+    nome: 'Disponível Para Adoção',
   },
   {
     id: 3,
