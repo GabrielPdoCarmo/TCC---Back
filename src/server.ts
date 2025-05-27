@@ -98,7 +98,7 @@ app.use('/api/sexoUsuario', sexoUsuarioRoutes);
 app.use('/api/estados-cidades-json', cidades_estadosRoutes);
 app.use('/api/sexoPet', sexoRoutes);
 app.use('/api/pets-doencas', petDoencaDeficienciaRoutes);
-app.use('/api/pets-meus', myPetsRoutes);
+app.use('/api/mypets', myPetsRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

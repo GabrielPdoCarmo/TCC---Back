@@ -12,10 +12,10 @@ export class PetController {
     if (!value || value === '' || (typeof value === 'string' && value.trim() === '')) {
       return null; // ✅ Converte string vazia para NULL
     }
-    
+
     // Remove formatação (pontos, traços, espaços)
     const cleaned = value.toString().replace(/[^0-9a-zA-Z]/g, '');
-    
+
     // Se após limpeza ficar vazio, retorna null
     return cleaned === '' ? null : cleaned;
   }
@@ -73,6 +73,50 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pet pelo nome.' });
     }
   };
+
+  static getByNomePet_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { nome, status_id } = req.params;
+
+      // Verificar se o nome foi fornecido
+      if (!nome) {
+        res.status(400).json({ error: 'Nome do pet não fornecido.' });
+        return;
+      }
+
+      // Verificar se o status_id foi fornecido
+      if (!status_id) {
+        res.status(400).json({ error: 'Status ID não fornecido.' });
+        return;
+      }
+
+      // Validar se o status_id é 3 ou 4
+      const statusIdNumber = parseInt(status_id);
+      if (statusIdNumber !== 3 && statusIdNumber !== 4) {
+        res.status(400).json({ error: 'Status ID deve ser 3 ou 4.' });
+        return;
+      }
+
+      // Buscar o pet pelo nome e status_id fornecido
+      const pets = await Pet.findAll({
+        where: {
+          nome: nome,
+          status_id: statusIdNumber,
+        },
+      });
+
+      // Se não encontrou nenhum pet
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado com este nome e status.' });
+        return;
+      }
+
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pet pelo nome e status.' });
+    }
+  };
   static getByRacaId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { raca_id } = req.params;
@@ -97,6 +141,35 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pets por raça.' });
     }
   };
+
+  static getByRacaId_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { raca_id, status_id } = req.params;
+      // Verificar se o ID da raça e o status foram fornecidos
+      if (!raca_id || !status_id) {
+        res.status(400).json({ error: 'ID da raça ou status não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à raça e ao status
+      const pets = await Pet.findAll({
+        where: {
+          raca_id: raca_id,
+          status_id: 3,
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta raça e status.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por raça e status.' });
+    }
+  };
+
   static getByEspecieId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { especie_id } = req.params;
@@ -121,6 +194,35 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pets por espécie.' });
     }
   };
+
+  static getByEspecieId_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { especie_id, status_id } = req.params;
+      // Verificar se o ID da espécie e o status foram fornecidos
+      if (!especie_id || !status_id) {
+        res.status(400).json({ error: 'ID da espécie ou status não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à espécie e ao status
+      const pets = await Pet.findAll({
+        where: {
+          especie_id: especie_id,
+          status_id: 3,
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta espécie e status.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por espécie e status.' });
+    }
+  };
+
   static getByEstadoId_CidadeId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { estado_id, cidade_id } = req.params;
@@ -149,7 +251,36 @@ export class PetController {
     }
   };
 
-  static getByFaixaEtariaId_Idade: RequestHandler = async (req: Request, res: Response, next: NextFunction) => { 
+  static getByEstadoId_CidadeId_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { estado_id, cidade_id, status_id } = req.params;
+      // Verificar se o ID da cidade, do estado e o status foram fornecidos
+      if (!cidade_id || !estado_id || !status_id) {
+        res.status(400).json({ error: 'ID da cidade, estado ou status não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à cidade, estado e status
+      const pets = await Pet.findAll({
+        where: {
+          cidade_id: cidade_id,
+          estado_id: estado_id,
+          status_id: 3, // Status fixo, apenas status 3 é permitido
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta cidade, estado e status.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por cidade, estado e status.' });
+    }
+  };
+
+  static getByFaixaEtariaId_Idade: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { faixa_etaria_id, idade } = req.params;
       // Verificar se o ID da faixa etária e a idade foram fornecidos
@@ -175,7 +306,39 @@ export class PetController {
       console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por faixa etária e idade.' });
     }
-  }
+  };
+  static getByFaixaEtariaId_Idade_StatusId: RequestHandler = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { faixa_etaria_id, idade, status_id } = req.params;
+      // Verificar se o ID da faixa etária, idade e status foram fornecidos
+      if (!faixa_etaria_id || !idade || !status_id) {
+        res.status(400).json({ error: 'ID da faixa etária, idade ou status não fornecido.' });
+        return;
+      }
+      // Buscar todos os pets associados à faixa etária, idade e status
+      const pets = await Pet.findAll({
+        where: {
+          faixa_etaria_id: faixa_etaria_id,
+          idade: idade,
+          status_id: 3, // Status fixo, apenas status 3 é permitido
+        },
+      });
+      // Se não encontrou nenhum pet, retornar um array vazio com status 200
+      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
+      if (pets.length === 0) {
+        res.status(404).json({ error: 'Nenhum pet encontrado para esta faixa etária, idade e status.' });
+        return;
+      }
+      res.status(200).json(pets);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao buscar pets por faixa etária, idade e status.' });
+    }
+  };
 
   static getByUsuarioId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
