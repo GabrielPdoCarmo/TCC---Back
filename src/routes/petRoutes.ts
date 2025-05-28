@@ -9,7 +9,7 @@ router.get('/:id', PetController.getById);
 router.get('/usuario/:usuario_id', PetController.getByUsuarioId);
 router.post('/', upload.single('foto'), PetController.create);
 router.put('/:id', upload.single('foto'), PetController.update);
-router.delete('/:id', PetController.delete); // <-- essa linha é ESSENCIAL
+router.delete('/:id', PetController.delete);
 router.put('/status/:id', PetController.updateStatus);
 router.get('/status/:status_id', PetController.getByStatusId);
 router.get('/nome/:nome', PetController.getByNamePet);
@@ -17,12 +17,13 @@ router.get('/raca/:raca_id', PetController.getByRacaId);
 router.get('/especie/:especie_id', PetController.getByEspecieId);
 router.get('/estado/:estado_id/cidade/:cidade_id', PetController.getByEstadoId_CidadeId);
 router.get('/faixa-etaria/:faixa_etaria_id/idade/:idade', PetController.getByFaixaEtariaId_Idade);
-router.get('/faixa-etaria/:faixa_etaria_id/idade/:idade/status/:status_id', PetController.getByFaixaEtariaId_Idade_StatusId);
-router.get('/nome/:nome/status/:status_id', PetController.getByNomePet_StatusId);
+router.get(
+  '/faixa-etaria/:faixa_etaria_id/idade/:idade/status/:status_id',
+  PetController.getByFaixaEtariaId_Idade_StatusId
+);
+router.get('/nome/:nome/status', PetController.getByNomePet_StatusId);
 router.get('/raca/:raca_id/status/:status_id', PetController.getByRacaId_StatusId);
 router.get('/especie/:especie_id/status/:status_id', PetController.getByEspecieId_StatusId);
 router.get('/estado/:estado_id/cidade/:cidade_id/status/:status_id', PetController.getByEstadoId_CidadeId_StatusId);
-
-
 
 export default router;

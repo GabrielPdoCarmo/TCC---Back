@@ -55,15 +55,17 @@ export class PetController {
         return;
       }
 
-      // Buscar o pet pelo nome
+      // Buscar o pet pelo nome E com status_id = 2
       const pet = await Pet.findAll({
-        where: { nome },
+        where: {
+          nome,
+          status_id: 2,
+        },
       });
 
-      // Se não encontrou nenhum pet, retornar um array vazio com status 200
-      // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
-      if (!pet) {
-        res.status(404).json({ error: 'Pet não encontrado.' });
+      // Se não encontrou nenhum pet, retornar erro 404
+      if (pet.length === 0) {
+        res.status(404).json({ error: 'Pet não encontrado com status ativo.' });
         return;
       }
 
@@ -76,7 +78,7 @@ export class PetController {
 
   static getByNomePet_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { nome, status_id } = req.params;
+      const { nome } = req.params;
 
       // Verificar se o nome foi fornecido
       if (!nome) {
@@ -84,30 +86,17 @@ export class PetController {
         return;
       }
 
-      // Verificar se o status_id foi fornecido
-      if (!status_id) {
-        res.status(400).json({ error: 'Status ID não fornecido.' });
-        return;
-      }
-
-      // Validar se o status_id é 3 ou 4
-      const statusIdNumber = parseInt(status_id);
-      if (statusIdNumber !== 3 && statusIdNumber !== 4) {
-        res.status(400).json({ error: 'Status ID deve ser 3 ou 4.' });
-        return;
-      }
-
-      // Buscar o pet pelo nome e status_id fornecido
+      // Buscar o pet pelo nome e status_id 3 ou 4
       const pets = await Pet.findAll({
         where: {
           nome: nome,
-          status_id: statusIdNumber,
+          status_id: [3, 4], // Filtra apenas pets com status 3 ou 4
         },
       });
 
       // Se não encontrou nenhum pet
       if (pets.length === 0) {
-        res.status(404).json({ error: 'Nenhum pet encontrado com este nome e status.' });
+        res.status(404).json({ error: 'Nenhum pet encontrado com este nome e status válido (3 ou 4).' });
         return;
       }
 
@@ -371,8 +360,13 @@ export class PetController {
     }
   };
 
+  /**
+   * Método responsável pelo cadastro de novos pets no sistema
+   * Implementa upload de imagens, validações de negócio e criação de relacionamentos
+   */
   static create: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Desestruturação dos dados recebidos do frontend
       const {
         nome,
         especie_id,
@@ -389,10 +383,10 @@ export class PetController {
       console.log('Dados recebidos:', req.body);
       console.log('Arquivo recebido:', req.file);
 
-      // Variável para armazenar a URL da foto
+      // ========== PROCESSAMENTO DE UPLOAD DE IMAGEM ==========
       let fotoUrl = null;
 
-      // Verificar se um arquivo foi enviado
+      // Verificar se um arquivo de imagem foi enviado via multer
       if (req.file) {
         try {
           console.log('Arquivo presente, tamanho:', req.file.size);
@@ -400,7 +394,10 @@ export class PetController {
 
           const fileBuffer = req.file.buffer;
 
+          // Gerar nome único para o arquivo evitando conflitos
           const filePath = `pets/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+
+          // Upload para Supabase Storage
           const { data, error } = await supabase.storage.from('pet-images').upload(filePath, fileBuffer, {
             contentType: req.file.mimetype,
           });
@@ -408,6 +405,7 @@ export class PetController {
           if (error) {
             console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
+            // Obter URL pública da imagem para armazenar no banco
             const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
             fotoUrl = publicData?.publicUrl ?? null;
             console.log('URL da imagem gerada:', fotoUrl);
@@ -419,24 +417,27 @@ export class PetController {
         console.log('Nenhum arquivo foi enviado');
       }
 
-      // Continuar com a criação do pet
-      // Buscar o usuário e a cidade dele
+      // ========== VALIDAÇÕES DE NEGÓCIO ==========
+
+      // Validar se o usuário existe
       const usuario = await Usuario.findByPk(usuario_id);
       if (!usuario) {
         res.status(400).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
+      // Buscar cidade do usuário para definir localização do pet
       const cidade = await Cidade.findByPk(usuario.cidade_id);
       if (!cidade) {
         res.status(400).json({ error: 'Cidade do usuário não encontrada.' });
         return;
       }
 
-      // ✅ SANITIZAR RG_PET - converter string vazia para null
+      // ========== SANITIZAÇÃO DE DADOS ==========
+      // Converter string vazia em null para campos opcionais
       const rgSanitizado = PetController.sanitizeRgPet(rg_Pet);
 
-      // Criar o novo pet com os dados recebidos e a URL da imagem
+      // ========== CRIAÇÃO DO REGISTRO DO PET ==========
       const novoPet = await Pet.create({
         nome,
         especie_id,
@@ -445,24 +446,27 @@ export class PetController {
         faixa_etaria_id,
         usuario_id,
         sexo_id,
-        rg_Pet: rgSanitizado, // ✅ Usar o valor sanitizado
+        rg_Pet: rgSanitizado,
         motivoDoacao,
-        status_id: 1, // Status padrão (1 = disponível)
-        cidade_id: usuario.cidade_id,
+        status_id: 1, // Status padrão: disponível para adoção
+        cidade_id: usuario.cidade_id, // Herda localização do usuário
         estado_id: cidade.estado_id,
-        foto: fotoUrl, // Armazenar a URL da imagem (ou null caso não tenha imagem)
+        foto: fotoUrl, // URL da imagem no Supabase ou null
       });
 
       console.log('Pet criado com sucesso:', novoPet.id);
 
-      // Se houver doenças relacionadas ao pet, associe-as
+      // ========== CRIAÇÃO DE RELACIONAMENTOS ==========
+      // Associar doenças/deficiências ao pet (relacionamento N:N)
       if (doencas && Array.isArray(doencas)) {
         await Promise.all(
           doencas.map(async (nome: string) => {
+            // Buscar ou criar doença/deficiência
             const [doenca] = await DoencasDeficiencias.findOrCreate({
               where: { nome },
             });
 
+            // Criar associação na tabela intermediária
             await PetDoencaDeficiencia.create({
               pet_id: novoPet.id,
               doencaDeficiencia_id: doenca.id,
@@ -473,15 +477,15 @@ export class PetController {
         console.log('Doenças associadas ao pet');
       }
 
-      res.status(201).json(novoPet); // Retorne o pet recém-criado
+      // Retornar pet criado com status HTTP 201
+      res.status(201).json(novoPet);
     } catch (error) {
       console.error('Erro completo:', error);
-      next(error); // Passa o erro para o próximo middleware de tratamento de erros
-      return; // Encerra a execução da função
+      next(error); // Delegação para middleware de tratamento de erros
+      return;
     }
   };
 
-  // ✅ CORREÇÃO PRINCIPAL: Método update com sanitização do rg_Pet
   static update: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
@@ -494,13 +498,11 @@ export class PetController {
         return;
       }
 
-      // ✅ SANITIZAR RG_PET se foi enviado nos dados
       if ('rg_Pet' in dadosAtualizados) {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
         console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
       }
 
-      // ✅ SANITIZAR RG_PET se foi enviado nos dados
       if ('rg_Pet' in dadosAtualizados) {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
         console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
