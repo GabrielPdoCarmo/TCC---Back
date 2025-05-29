@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Usuario } from '../models/usuarioModel';
-
-const secretKey = process.env.JWT_SECRET || 'chave_secreta';
+import { jwtSecret } from '../config/jwtConfig';
 
 export class AuthController {
   static async login(req: Request, res: Response): Promise<void> {
@@ -31,7 +30,7 @@ export class AuthController {
         return;
       }
 
-      const token = jwt.sign({ id: usuario.id, email: usuario.email }, secretKey, {
+      const token = jwt.sign({ id: usuario.id, email: usuario.email }, jwtSecret, {
         expiresIn: '1d',
       });
 
@@ -55,4 +54,3 @@ export class AuthController {
     res.status(200).json({ message: 'Deslogado com sucesso.' });
   }
 }
-

@@ -1,8 +1,9 @@
 import express from 'express';
 import 'reflect-metadata';
 import dotenv from 'dotenv';
+import 'dotenv/config';
 import { Sequelize } from 'sequelize-typescript';
-
+import termoDoacaoRoutes from './routes/termoDoacaoRoutes';
 import petRoutes from './routes/petRoutes';
 import myPetsRoutes from './routes/myPetsRouter';
 import estadoRoutes from './routes/estadoRoutes';
@@ -18,6 +19,7 @@ import authRoutes from './routes/authRoutes';
 import sexoUsuarioRoutes from './routes/sexoUsuarioRoutes';
 import petDoencaDeficienciaRoutes from './routes/petDoencaDeficienciaRoutes';
 import sexoRoutes from './routes/sexoPetRouter';
+import termoCopromissoRoutes from './routes/termosCompromissoRouter';
 import cidades_estadosRoutes from './routes/cidade_estado_json';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';
@@ -35,6 +37,8 @@ import { Sexo } from './models/sexoPetModel';
 import { Sexo_Usuario } from './models/sexoUsuarioModel';
 import { MyPets } from './models/mypetsModel';
 import { RecuperacaoSenha } from './models/RecuperacaoSenhaModel';
+import { TermoCompromisso } from './models/termosCompromissoModel';
+import { TermoDoacao } from './models/termoDoacaoModel';
 // import cors from 'cors';
 dotenv.config();
 
@@ -66,6 +70,8 @@ const sequelize = new Sequelize({
     Sexo_Usuario,
     MyPets,
     RecuperacaoSenha,
+    TermoCompromisso,
+    TermoDoacao,
   ],
 });
 
@@ -99,6 +105,8 @@ app.use('/api/estados-cidades-json', cidades_estadosRoutes);
 app.use('/api/sexoPet', sexoRoutes);
 app.use('/api/pets-doencas', petDoencaDeficienciaRoutes);
 app.use('/api/mypets', myPetsRoutes);
+app.use('/api/termos-compromisso', termoCopromissoRoutes);
+app.use('/api/termos-doacao', termoDoacaoRoutes);
 
 // Middleware para tratamento de erros
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
