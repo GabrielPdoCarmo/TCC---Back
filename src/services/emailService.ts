@@ -54,7 +54,7 @@ export class EmailService {
       // Configurar email
       const mailOptions = {
         from: {
-          name: 'PetSup - Adoção de Pets',
+          name: 'Pets_Up - Adoção de Pets',
           address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         },
         to: termo.adotante_email, // 🔧 Apenas para o adotante
@@ -268,7 +268,7 @@ export class EmailService {
       .fontSize(8)
       .font('Helvetica')
       .text(
-        'Este documento foi gerado digitalmente pelo PetSup - Plataforma de Adoção de Pets',
+        'Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets',
         0,
         doc.page.height - 30,
         { align: 'center' }
@@ -351,11 +351,11 @@ export class EmailService {
             <p>Desejamos uma vida longa e feliz para você e <span class="highlight">${termo.pet_nome}</span>! 💙</p>
             
             <p>Com carinho,<br>
-            <strong>Equipe PetSup</strong></p>
+            <strong>Equipe Pets_Up</strong></p>
           </div>
           
           <div class="footer">
-            <p>Este email foi enviado automaticamente pelo sistema PetSup</p>
+            <p>Este email foi enviado automaticamente pelo sistema Pets_Up</p>
             <p>Hash do documento: ${termo.hash_documento}</p>
           </div>
         </div>

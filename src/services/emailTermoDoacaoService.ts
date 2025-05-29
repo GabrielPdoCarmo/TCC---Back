@@ -54,7 +54,7 @@ export class EmailTermoDoacaoService {
       // Configurar email
       const mailOptions = {
         from: {
-          name: 'PetSup - Adoção de Pets',
+          name: 'Pets_Up - Adoção de Pets',
           address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         },
         to: termo.doador_email, // 📧 Para o doador
@@ -275,7 +275,7 @@ export class EmailTermoDoacaoService {
       .fontSize(8)
       .font('Helvetica')
       .text(
-        'Documento gerado automaticamente pelo PetSup - Sistema de Adoção Responsável',
+        'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção Responsável',
         0,
         doc.page.height - 30,
         { align: 'center' }
@@ -386,11 +386,11 @@ export class EmailTermoDoacaoService {
             <p>Obrigado por contribuir para a <span class="highlight">adoção responsável</span> de pets! 💚</p>
             
             <p>Com carinho,<br>
-            <strong>Equipe PetSup</strong></p>
+            <strong>Equipe Pets_Up</strong></p>
           </div>
           
           <div class="footer">
-            <p>Este email foi enviado automaticamente pelo sistema PetSup</p>
+            <p>Este email foi enviado automaticamente pelo sistema Pets_Up</p>
             <p>Hash de verificação: ${termo.hash_documento}</p>
             <p>Para validar este documento, acesse: [URL_DO_SISTEMA]/termos-doacao/${termo.id}/validate</p>
           </div>
@@ -407,7 +407,7 @@ export class EmailTermoDoacaoService {
     try {
       const mailOptions = {
         from: {
-          name: 'PetSup - Adoção de Pets',
+          name: 'Pets_Up - Adoção de Pets',
           address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         },
         to: termo.doador_email,
@@ -458,7 +458,7 @@ export class EmailTermoDoacaoService {
             
             <p>Obrigado por fazer parte da nossa comunidade! 🐾</p>
             
-            <p><strong>Equipe PetSup</strong></p>
+            <p><strong>Equipe Pets_Up</strong></p>
           </div>
         </div>
       </body>
@@ -478,7 +478,7 @@ export class EmailTermoDoacaoService {
     try {
       const mailOptions = {
         from: {
-          name: 'PetSup - Adoção de Pets',
+          name: 'Pets_Up - Adoção de Pets',
           address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         },
         to: destinatario,
