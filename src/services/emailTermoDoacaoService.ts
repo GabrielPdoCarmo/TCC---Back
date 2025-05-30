@@ -1,7 +1,9 @@
-// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação (TELEFONE CORRIGIDO)
+// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação (com imagem personalizada)
 
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
 import { TermoDoacao } from '../models/termoDoacaoModel';
 
 interface EmailConfig {
@@ -83,6 +85,10 @@ export class EmailTermoDoacaoService {
       // Gerar PDF em buffer
       const pdfBuffer = await this.gerarPDFBuffer(termo);
 
+      // Ler a imagem do cachorro
+      const logoPath = path.join(__dirname, '../images/estampa-de-cachorro.png');
+      const logoBuffer = fs.readFileSync(logoPath);
+
       // Configurar email
       const mailOptions = {
         from: {
@@ -98,6 +104,12 @@ export class EmailTermoDoacaoService {
             content: pdfBuffer,
             contentType: 'application/pdf',
           },
+          {
+            filename: 'logo.png',
+            content: logoBuffer,
+            contentType: 'image/png',
+            cid: 'logo_cachorro' // Content-ID para referenciar no HTML
+          }
         ],
       };
 
@@ -337,9 +349,10 @@ export class EmailTermoDoacaoService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #2E8B57; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: #4682B4; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header img { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-          .doador-info { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2E8B57; }
+          .doador-info { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4682B4; }
           .compromissos { background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
           .highlight { color: #2E8B57; font-weight: bold; }
@@ -350,7 +363,7 @@ export class EmailTermoDoacaoService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🐾 Termo de Responsabilidade de Doação</h1>
+            <h1><img src="cid:logo_cachorro" alt="Pet Icon"> Termo de Responsabilidade de Doação</h1>
             <p>Seu termo foi assinado com sucesso!</p>
           </div>
           
@@ -436,6 +449,10 @@ export class EmailTermoDoacaoService {
   // Resto dos métodos permanece igual...
   async enviarConfirmacaoTermo(termo: TermoDoacao): Promise<void> {
     try {
+      // Ler a imagem do cachorro para o email de confirmação também
+      const logoPath = path.join(__dirname, '../images/estampa-de-cachorro.png');
+      const logoBuffer = fs.readFileSync(logoPath);
+
       const mailOptions = {
         from: {
           name: 'Pets_Up - Adoção de Pets',
@@ -444,6 +461,14 @@ export class EmailTermoDoacaoService {
         to: termo.doador_email,
         subject: `Confirmação - Termo de Doação Assinado`,
         html: this.gerarHTMLConfirmacao(termo),
+        attachments: [
+          {
+            filename: 'logo.png',
+            content: logoBuffer,
+            contentType: 'image/png',
+            cid: 'logo_cachorro' // Content-ID para referenciar no HTML
+          }
+        ],
       };
 
       const info = await this.transporter.sendMail(mailOptions);
@@ -463,7 +488,8 @@ export class EmailTermoDoacaoService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #2E8B57; color: white; padding: 20px; text-align: center; border-radius: 8px; }
+          .header { background: #4682B4; color: white; padding: 20px; text-align: center; border-radius: 8px; }
+          .header img { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; }
           .content { padding: 30px 0; }
           .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
@@ -471,7 +497,7 @@ export class EmailTermoDoacaoService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🎉 Termo Assinado com Sucesso!</h1>
+            <h1><img src="cid:logo_cachorro" alt="Pet Icon"> Termo Assinado com Sucesso!</h1>
           </div>
           
           <div class="content">
@@ -484,7 +510,7 @@ export class EmailTermoDoacaoService {
             
             <p>Em breve você receberá outro email com o documento PDF completo.</p>
             
-            <p>Obrigado por fazer parte da nossa comunidade! 🐾</p>
+            <p>Obrigado por fazer parte da nossa comunidade!</p>
             
             <p><strong>Equipe Pets_Up</strong></p>
           </div>

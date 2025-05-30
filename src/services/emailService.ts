@@ -1,7 +1,9 @@
-// services/emailService.ts - Serviço de Email
+// services/emailService.ts - Serviço de Email (com imagem personalizada)
 
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
 import { TermoCompromisso } from '../models/termosCompromissoModel';
 
 interface EmailConfig {
@@ -51,6 +53,10 @@ export class EmailService {
       // Gerar PDF em buffer
       const pdfBuffer = await this.gerarPDFBuffer(termo);
 
+      // Ler a imagem do cachorro
+      const logoPath = path.join(__dirname, '../images/estampa-de-cachorro.png');
+      const logoBuffer = fs.readFileSync(logoPath);
+
       // Configurar email
       const mailOptions = {
         from: {
@@ -66,6 +72,12 @@ export class EmailService {
             content: pdfBuffer,
             contentType: 'application/pdf',
           },
+          {
+            filename: 'logo.png',
+            content: logoBuffer,
+            contentType: 'image/png',
+            cid: 'logo_cachorro' // Content-ID para referenciar no HTML
+          }
         ],
       };
 
@@ -296,6 +308,7 @@ export class EmailService {
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: #4682B4; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header img { width: 32px; height: 32px; vertical-align: middle; margin-right: 10px; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
           .pet-info { background: white; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4682B4; }
           .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
@@ -306,7 +319,7 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🐾 Termo de Compromisso de Adoção</h1>
+            <h1><img src="cid:logo_cachorro" alt="Pet Icon"> Termo de Compromisso de Adoção</h1>
             <p>Parabéns pela adoção de <strong>${termo.pet_nome}</strong>!</p>
           </div>
           

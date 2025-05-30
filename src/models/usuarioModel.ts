@@ -18,7 +18,7 @@ export class Usuario extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   sexo_id!: string;
 
-  @Column({ type: DataType.STRING(11), allowNull: false })
+  @Column({ type: DataType.STRING(10), allowNull: false })
   telefone!: string;
 
   @Column({ type: DataType.STRING(255), allowNull: false, unique: true })
@@ -32,10 +32,10 @@ export class Usuario extends Model {
 
   @Column({ type: DataType.STRING(10), allowNull: true })
   cep!: string;
-  
+
   @Column({ type: DataType.STRING(255), allowNull: true })
   foto!: string; // nova coluna para armazenar URL da imagem
-  
+
   @ForeignKey(() => Estado)
   @Column({ type: DataType.INTEGER, allowNull: false })
   estado_id!: number;
