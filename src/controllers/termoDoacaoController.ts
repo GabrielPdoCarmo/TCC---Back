@@ -142,9 +142,33 @@ export class TermoDoacaoController {
         return;
       }
 
-      // Criar termo usando o método do modelo
+      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO
+      let dadosUsuario;
+      try {
+        dadosUsuario = await Usuario.findByPk(doadorId);
+        if (!dadosUsuario) {
+          res.status(404).json({
+            error: 'Usuário não encontrado',
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar dados do usuário:', error);
+        res.status(500).json({
+          error: 'Erro ao buscar dados do usuário',
+        });
+        return;
+      }
+
+      // Criar termo usando o método do modelo com dados completos do usuário
       const novoTermo = await TermoDoacao.criarComDados({
         doador_id: doadorId,
+        doador_nome: dadosUsuario.nome || assinaturaDigital,
+        doador_email: dadosUsuario.email,
+        doador_telefone: dadosUsuario.telefone, // ✅ TELEFONE DO USUÁRIO
+        doador_cpf: dadosUsuario.cpf,
+        doador_cidade_id: dadosUsuario.cidade_id,
+        doador_estado_id: dadosUsuario.estado_id,
         motivo_doacao: motivoDoacao,
         assinatura_digital: assinaturaDigital,
         condicoes_adocao: condicoesAdocao,
@@ -249,7 +273,6 @@ export class TermoDoacaoController {
 
       if (!termo) {
         res.status(404).json({
-          error: 'Você ainda não possui um termo de doação',
           canCreatePets: false,
         });
         return;
@@ -304,6 +327,10 @@ export class TermoDoacaoController {
    * ✅ Verificar se usuário pode cadastrar pets
    * GET /api/termos-doacao/pode-cadastrar-pets
    */
+  /**
+   * ✅ Verificar se usuário pode cadastrar pets
+   * GET /api/termos-doacao/pode-cadastrar-pets
+   */
   static async podeCadastrarPets(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -311,23 +338,55 @@ export class TermoDoacaoController {
       if (!usuarioId) {
         res.status(401).json({
           error: 'Usuário não autenticado',
+          message: 'Token de acesso inválido ou expirado',
         });
         return;
       }
 
-      const podecadastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
+      console.log(`🔍 Verificando se usuário ${usuarioId} pode cadastrar pets...`);
 
-      res.json({
+      // Verificar se usuário pode cadastrar pets
+      let podecastrar = false;
+      let temTermo = false;
+
+      try {
+        podecastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
+
+        // Se pode cadastrar, é porque tem termo
+        if (podecastrar) {
+          temTermo = true;
+          console.log(`✅ Usuário ${usuarioId} pode cadastrar pets`);
+        } else {
+          // Verificar se tem termo mas não pode cadastrar
+          const termo = await TermoDoacao.findByDoador(usuarioId);
+          temTermo = !!termo;
+          console.log(`ℹ️ Usuário ${usuarioId} - temTermo: ${temTermo}, podecastrar: ${podecastrar}`);
+        }
+      } catch (modelError: any) {
+        console.error(`❌ Erro ao verificar termo do usuário ${usuarioId}:`, modelError);
+        // Em caso de erro, assumir que não pode cadastrar por segurança
+        podecastrar = false;
+        temTermo = false;
+      }
+
+      // SEMPRE retornar status 200 para não quebrar o frontend
+      res.status(200).json({
         message: 'Verificação concluída',
         data: {
-          podecastrar: podecadastrar,
-          temTermo: podecadastrar,
+          podecastrar,
+          temTermo,
         },
       });
     } catch (error: any) {
-      res.status(500).json({
-        error: 'Erro interno do servidor',
-        message: error.message,
+      console.error('❌ Erro ao verificar se usuário pode cadastrar pets:', error);
+
+      // IMPORTANTE: SEMPRE retornar 200 com podecastrar: false em caso de erro
+      res.status(200).json({
+        message: 'Erro na verificação',
+        data: {
+          podecastrar: false,
+          temTermo: false,
+        },
       });
     }
   }

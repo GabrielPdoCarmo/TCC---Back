@@ -1,4 +1,4 @@
-// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação
+// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação (TELEFONE CORRIGIDO)
 
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
@@ -22,7 +22,7 @@ export class EmailTermoDoacaoService {
     const config: EmailConfig = {
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true', // false para 587, true para 465
+      secure: process.env.EMAIL_SECURE === 'true',
       auth: {
         user: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         pass: process.env.EMAIL_PASS || 'viwwohabadqfthjb',
@@ -31,7 +31,6 @@ export class EmailTermoDoacaoService {
 
     this.transporter = nodemailer.createTransport(config);
 
-    // Verificar conexão
     this.transporter.verify((error, success) => {
       if (error) {
         console.error('❌ Erro na configuração do email:', error);
@@ -39,6 +38,39 @@ export class EmailTermoDoacaoService {
         console.log('✅ Servidor de email configurado com sucesso');
       }
     });
+  }
+
+  /**
+   * 📱 Formatar telefone brasileiro
+   */
+  private formatarTelefone(telefone: string | null | undefined): string {
+    if (!telefone) return 'Não informado';
+    
+    // Remove todos os caracteres não numéricos
+    const apenasNumeros = telefone.replace(/\D/g, '');
+    
+    // Se já está formatado corretamente, retorna como está
+    if (telefone.includes('(') && telefone.includes(')') && telefone.includes('-')) {
+      return telefone;
+    }
+    
+    // Formatar conforme o padrão brasileiro
+    if (apenasNumeros.length === 11) {
+      // Celular: (XX) 9XXXX-XXXX
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7)}`;
+    } else if (apenasNumeros.length === 10) {
+      // Fixo: (XX) XXXX-XXXX
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`;
+    } else if (apenasNumeros.length === 9) {
+      // Celular sem DDD: 9XXXX-XXXX
+      return `${apenasNumeros.slice(0, 5)}-${apenasNumeros.slice(5)}`;
+    } else if (apenasNumeros.length === 8) {
+      // Fixo sem DDD: XXXX-XXXX
+      return `${apenasNumeros.slice(0, 4)}-${apenasNumeros.slice(4)}`;
+    } else {
+      // Se não se encaixa nos padrões, retorna como está
+      return telefone;
+    }
   }
 
   /**
@@ -57,7 +89,7 @@ export class EmailTermoDoacaoService {
           name: 'Pets_Up - Adoção de Pets',
           address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
         },
-        to: termo.doador_email, // 📧 Para o doador
+        to: termo.doador_email,
         subject: `Termo de Responsabilidade de Doação - ${termo.doador_nome}`,
         html: this.gerarHTMLEmail(termo),
         attachments: [
@@ -147,10 +179,10 @@ export class EmailTermoDoacaoService {
     yPosition += 15;
     doc.text(`Email: ${termo.doador_email}`, 50, yPosition);
     
-    if (termo.doador_telefone) {
-      yPosition += 15;
-      doc.text(`Telefone: ${termo.doador_telefone}`, 50, yPosition);
-    }
+    // ✅ TELEFONE FORMATADO
+    yPosition += 15;
+    const telefoneFormatado = this.formatarTelefone(termo.doador_telefone);
+    doc.text(`Telefone: ${telefoneFormatado}`, 50, yPosition);
 
     if (termo.doador_cpf) {
       yPosition += 15;
@@ -275,7 +307,7 @@ export class EmailTermoDoacaoService {
       .fontSize(8)
       .font('Helvetica')
       .text(
-        'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção Responsável',
+        'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção de Pets',
         0,
         doc.page.height - 30,
         { align: 'center' }
@@ -295,6 +327,7 @@ export class EmailTermoDoacaoService {
     });
 
     const localizacao = [termo.cidade?.nome, termo.estado?.nome].filter(Boolean).join(' - ');
+    const telefoneFormatado = this.formatarTelefone(termo.doador_telefone); // ✅ TELEFONE FORMATADO
 
     return `
       <!DOCTYPE html>
@@ -330,7 +363,7 @@ export class EmailTermoDoacaoService {
               <h3>📋 Informações do Termo:</h3>
               <p><strong>Doador:</strong> ${termo.doador_nome}</p>
               <p><strong>Email:</strong> ${termo.doador_email}</p>
-              ${termo.doador_telefone ? `<p><strong>Telefone:</strong> ${termo.doador_telefone}</p>` : ''}
+              <p><strong>Telefone:</strong> ${telefoneFormatado}</p>
               ${localizacao ? `<p><strong>Localização:</strong> ${localizacao}</p>` : ''}
               <p><strong>Data da Assinatura:</strong> ${dataFormatada}</p>
               <p><strong>ID do Documento:</strong> #${termo.id}</p>
@@ -400,9 +433,7 @@ export class EmailTermoDoacaoService {
     `;
   }
 
-  /**
-   * 📧 Enviar email de confirmação (sem PDF)
-   */
+  // Resto dos métodos permanece igual...
   async enviarConfirmacaoTermo(termo: TermoDoacao): Promise<void> {
     try {
       const mailOptions = {
@@ -423,9 +454,6 @@ export class EmailTermoDoacaoService {
     }
   }
 
-  /**
-   * 📧 Gerar HTML para email de confirmação
-   */
   private gerarHTMLConfirmacao(termo: TermoDoacao): string {
     return `
       <!DOCTYPE html>
@@ -466,9 +494,6 @@ export class EmailTermoDoacaoService {
     `;
   }
 
-  /**
-   * 📧 Enviar email simples (para outros casos)
-   */
   async enviarEmail(
     destinatario: string,
     assunto: string,

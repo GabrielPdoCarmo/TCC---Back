@@ -160,16 +160,6 @@ export class TermoDoacao extends Model {
   })
   hash_documento?: string;
 
-
-
-  // === DADOS PARA PDF ===
-  @Column({
-    type: DataType.STRING(500),
-    allowNull: true,
-    comment: 'Caminho do arquivo PDF gerado',
-  })
-  caminho_pdf?: string;
-
   @Column({
     type: DataType.DATE,
     allowNull: true,
@@ -180,7 +170,7 @@ export class TermoDoacao extends Model {
   // === RELACIONAMENTOS ===
   @BelongsTo(() => Usuario, { foreignKey: 'doador_id' })
   doador!: Usuario;
-
+                          
   @BelongsTo(() => Estado, { foreignKey: 'doador_estado_id' })
   estado!: Estado;
 
@@ -240,6 +230,12 @@ export class TermoDoacao extends Model {
    */
   static async criarComDados(data: {
     doador_id: number;
+    doador_nome: string;
+    doador_email: string;
+    doador_telefone: string;
+    doador_cpf: string;
+    doador_cidade_id: number;
+    doador_estado_id: number;
     motivo_doacao: string;
     assinatura_digital: string;
     condicoes_adocao?: string;
@@ -251,7 +247,7 @@ export class TermoDoacao extends Model {
     autoriza_verificacao: boolean;
     compromete_contato: boolean;
   }): Promise<TermoDoacao> {
-    const { Usuario } = require('./index');
+    const { Usuario } = require('./usuarioModel');
 
     // Buscar dados do doador
     const doador = await Usuario.findByPk(data.doador_id);
@@ -392,5 +388,4 @@ export class TermoDoacao extends Model {
       esteMes: mes_count,
     };
   }
-
 }
