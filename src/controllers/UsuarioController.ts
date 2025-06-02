@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Estado } from '../models/estadoModel';
 import { Cidade } from '../models/cidadeModel';
 import bcrypt from 'bcrypt';
+import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
 import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
 const saltRounds = 10; // número de rounds de salt
 import { cpf } from 'cpf-cnpj-validator';
@@ -12,6 +13,7 @@ import { Pet } from '../models/petModel';
 import { RecuperacaoSenha } from '../models/RecuperacaoSenhaModel';
 import nodemailer from 'nodemailer';
 import { Op } from 'sequelize';
+
 export class UsuarioController {
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -22,7 +24,103 @@ export class UsuarioController {
       res.status(500).json({ error: 'Erro ao listar usuários.' });
     }
   }
+  static async checkDuplicateFields(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, cpf, telefone } = req.body;
+      const duplicateFields: string[] = [];
 
+      // Verificar email duplicado
+      if (email) {
+        const existingEmail = await Usuario.findOne({ where: { email } });
+        if (existingEmail) {
+          duplicateFields.push('email');
+        }
+      }
+
+      // Verificar CPF duplicado
+      if (cpf) {
+        const cpfNumerico = cpf.replace(/\D/g, '');
+        const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
+        if (existingCpf) {
+          duplicateFields.push('cpf');
+        }
+      }
+
+      // Verificar telefone duplicado
+      if (telefone) {
+        const telefoneNumerico = telefone.replace(/\D/g, '');
+        const existingTelefone = await Usuario.findOne({ where: { telefone: telefoneNumerico } });
+        if (existingTelefone) {
+          duplicateFields.push('telefone');
+        }
+      }
+
+      if (duplicateFields.length > 0) {
+        res.status(400).json({
+          exists: true,
+          duplicateFields,
+          message: `Os seguintes campos já estão cadastrados: ${duplicateFields.join(', ')}`,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        exists: false,
+        message: 'Dados disponíveis para cadastro',
+      });
+    } catch (error) {
+      console.error('Erro ao verificar duplicação:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  }
+  private static validarEFormatarTelefone(telefone: string): { isValid: boolean; formatted?: string; error?: string } {
+    try {
+      // Remove caracteres não numéricos
+      const telefoneNumerico = telefone.replace(/\D/g, '');
+
+      // Verifica se tem pelo menos 10 dígitos (telefone fixo) ou 11 (celular)
+      if (telefoneNumerico.length < 10 || telefoneNumerico.length > 11) {
+        return {
+          isValid: false,
+          error: 'Telefone deve ter 10 ou 11 dígitos',
+        };
+      }
+
+      // Adiciona o código do país se não tiver
+      const telefoneComCodigo = telefoneNumerico.startsWith('55') ? `+${telefoneNumerico}` : `+55${telefoneNumerico}`;
+
+      // Valida usando libphonenumber-js
+      if (!isValidPhoneNumber(telefoneComCodigo, 'BR')) {
+        return {
+          isValid: false,
+          error: 'Número de telefone inválido',
+        };
+      }
+
+      // Formata o telefone - USANDO parsePhoneNumberFromString
+      const phoneNumber = parsePhoneNumberFromString(telefoneComCodigo, 'BR');
+
+      if (!phoneNumber) {
+        return {
+          isValid: false,
+          error: 'Não foi possível processar o telefone',
+        };
+      }
+
+      const formatted = phoneNumber.format('NATIONAL'); // Formato nacional: (11) 99999-9999
+
+      return {
+        isValid: true,
+        formatted: formatted,
+      };
+    } catch (error) {
+      console.error('Erro na validação do telefone:', error);
+      return {
+        isValid: false,
+        error: 'Erro ao validar telefone',
+      };
+    }
+  }
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuario = await Usuario.findByPk(Number(req.params.id));
@@ -94,6 +192,25 @@ export class UsuarioController {
         return res.status(400).json({
           error: 'CPF obrigatório',
           message: 'O CPF é obrigatório para cadastro.',
+        });
+      }
+
+      if (telefone) {
+        const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
+
+        if (!validacaoTelefone.isValid) {
+          return res.status(400).json({
+            error: 'Telefone inválido',
+            message: validacaoTelefone.error || 'O telefone informado não é válido.',
+          });
+        }
+
+        // Usa o telefone formatado
+        telefone = validacaoTelefone.formatted;
+      } else {
+        return res.status(400).json({
+          error: 'Telefone obrigatório',
+          message: 'O telefone é obrigatório para cadastro.',
         });
       }
 
@@ -195,9 +312,75 @@ export class UsuarioController {
       console.error('Erro ao criar usuário:', error);
 
       if (error instanceof UniqueConstraintError) {
+        // Identificar qual campo específico está duplicado
+        const duplicatedField = error.errors?.[0]?.path;
+        const duplicateFields: string[] = [];
+        let specificMessage = 'Email, CPF ou telefone já cadastrado no sistema.';
+        let fieldName = '';
+
+        // Verificar qual campo está duplicado baseado no erro do Sequelize
+        switch (duplicatedField) {
+          case 'email':
+            specificMessage = 'Este e-mail já está cadastrado no sistema.';
+            fieldName = 'email';
+            duplicateFields.push('email');
+            break;
+          case 'cpf':
+            specificMessage = 'Este CPF já está cadastrado no sistema.';
+            fieldName = 'cpf';
+            duplicateFields.push('cpf');
+            break;
+          case 'telefone':
+            specificMessage = 'Este telefone já está cadastrado no sistema.';
+            fieldName = 'telefone';
+            duplicateFields.push('telefone');
+            break;
+          default:
+            // Caso não consiga identificar, tenta verificar manualmente
+            try {
+              const cpfNumerico = cpfInput?.replace(/\D/g, '');
+              const telefoneNumerico = telefone?.replace(/\D/g, '');
+
+              // Verificar email
+              if (email) {
+                const existingEmail = await Usuario.findOne({ where: { email } });
+                if (existingEmail) {
+                  duplicateFields.push('email');
+                }
+              }
+
+              // Verificar CPF
+              if (cpfNumerico) {
+                const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
+                if (existingCpf) {
+                  duplicateFields.push('cpf');
+                }
+              }
+
+              // Verificar telefone
+              if (telefoneNumerico) {
+                const existingTelefone = await Usuario.findOne({ where: { telefone: telefoneNumerico } });
+                if (existingTelefone) {
+                  duplicateFields.push('telefone');
+                }
+              }
+
+              if (duplicateFields.length > 0) {
+                specificMessage = `Os seguintes campos já estão cadastrados: ${duplicateFields.join(', ')}`;
+                fieldName = duplicateFields[0]; // Para compatibilidade
+              }
+            } catch (checkError) {
+              console.error('Erro ao verificar duplicação manual:', checkError);
+            }
+            break;
+        }
+
         return res.status(400).json({
           error: 'Dados duplicados',
-          message: 'Email ou CPF já cadastrado no sistema.',
+          message: specificMessage,
+          duplicateField: fieldName, // Campo específico para o frontend
+          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'], // Array para compatibilidade
+          exists: true, // Para compatibilidade com validarUsuario
         });
       } else if (error instanceof ValidationError) {
         return res.status(400).json({
@@ -210,7 +393,77 @@ export class UsuarioController {
       }
     }
   }
+  // Adicione este método ao UsuarioController
 
+  static async checkDuplicateFieldsForEdit(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { userId, email, cpf, telefone } = req.body;
+      const duplicateFields: string[] = [];
+
+      if (!userId) {
+        res.status(400).json({ error: 'ID do usuário é obrigatório' });
+        return;
+      }
+
+      // Verificar email duplicado (excluindo o próprio usuário)
+      if (email) {
+        const existingEmail = await Usuario.findOne({
+          where: {
+            email,
+            id: { [Op.ne]: userId }, // Não igual ao ID do usuário atual
+          },
+        });
+        if (existingEmail) {
+          duplicateFields.push('email');
+        }
+      }
+
+      // Verificar CPF duplicado (excluindo o próprio usuário)
+      if (cpf) {
+        const cpfNumerico = cpf.replace(/\D/g, '');
+        const existingCpf = await Usuario.findOne({
+          where: {
+            cpf: cpfNumerico,
+            id: { [Op.ne]: userId },
+          },
+        });
+        if (existingCpf) {
+          duplicateFields.push('cpf');
+        }
+      }
+
+      // Verificar telefone duplicado (excluindo o próprio usuário)
+      if (telefone) {
+        const telefoneNumerico = telefone.replace(/\D/g, '');
+        const existingTelefone = await Usuario.findOne({
+          where: {
+            telefone: telefoneNumerico,
+            id: { [Op.ne]: userId },
+          },
+        });
+        if (existingTelefone) {
+          duplicateFields.push('telefone');
+        }
+      }
+
+      if (duplicateFields.length > 0) {
+        res.status(400).json({
+          exists: true,
+          duplicateFields,
+          message: `Os seguintes campos já estão sendo usados por outro usuário: ${duplicateFields.join(', ')}`,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        exists: false,
+        message: 'Dados disponíveis para atualização',
+      });
+    } catch (error) {
+      console.error('Erro ao verificar duplicação para edição:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  }
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -238,6 +491,7 @@ export class UsuarioController {
         estado_id,
         cidade_id,
       } = req.body;
+
       if (cpfInput !== undefined && cpfInput !== null) {
         // Remove caracteres não numéricos
         const cpfNumerico = cpfInput.replace(/\D/g, '');
@@ -254,6 +508,22 @@ export class UsuarioController {
         // Formata o CPF antes de salvar (opcional)
         cpfInput = cpf.format(cpfNumerico);
       }
+
+      if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
+        const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
+
+        if (!validacaoTelefone.isValid) {
+          res.status(400).json({
+            error: 'Telefone inválido',
+            message: validacaoTelefone.error || 'O telefone informado não é válido.',
+          });
+          return;
+        }
+
+        // Usa o telefone formatado
+        telefone = validacaoTelefone.formatted;
+      }
+
       // Debug: Mostrar valores recebidos
       console.log('Valores recebidos do cliente:', {
         nome,
@@ -267,19 +537,8 @@ export class UsuarioController {
         cidade_id: cidade_id || 'não informado',
       });
 
-      // Inicializar dados atualizados - incluir TODOS os campos possíveis incluindo senha
-      const dadosAtualizados: {
-        nome: any;
-        sexo_id: string | number;
-        telefone: any;
-        email: any;
-        cpf: any;
-        cep: any;
-        estado_id: number;
-        cidade_id: number;
-        foto: any;
-        senha?: string; // Tornar senha opcional
-      } = {
+      // Inicializar dados atualizados
+      const dadosAtualizados: any = {
         nome,
         sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
         telefone,
@@ -291,41 +550,19 @@ export class UsuarioController {
         foto: bodyFoto,
       };
 
-      // IMPORTANTE: Criptografar a senha aqui se foi fornecida
-      const bcrypt = require('bcrypt');
+      // Criptografar a senha se foi fornecida
       if (senha && senha.trim() !== '') {
-        // Criptografar a senha manualmente (mesmo com hooks ativados, garantimos que será feito)
         const saltRounds = 10;
         dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
         console.log('Nova senha recebida e criptografada manualmente');
       } else {
         console.log('Senha não informada, mantendo a atual');
-        // Remover o campo senha se não foi fornecido
         delete dadosAtualizados.senha;
       }
 
       // Inicializar a URL da foto com a existente ou a do body
-      let fotoUrl = bodyFoto || usuario.foto; // Mantém a foto atual se não for enviada nova
-
-      // Resto do código de processamento de foto...
-      // [código existente para upload de foto]
-
-      // Adicionar a URL da foto aos dados atualizados
+      let fotoUrl = bodyFoto || usuario.foto;
       dadosAtualizados.foto = fotoUrl;
-
-      // Debug: mostrar objeto antes da atualização
-      console.log('Valores do usuário ANTES da atualização:', {
-        id: usuario.id,
-        nome: usuario.nome,
-        estado_id: usuario.estado_id,
-        cidade_id: usuario.cidade_id,
-        cep: usuario.cep, // Adicionado para depuração
-      });
-
-      // Imprimir a senha criptografada para depuração
-      if (dadosAtualizados.senha) {
-        console.log('Senha criptografada que será enviada:', dadosAtualizados.senha.substring(0, 10) + '...');
-      }
 
       // ATUALIZAÇÃO COM HOOKS ATIVADOS
       await usuario.update(
@@ -336,27 +573,17 @@ export class UsuarioController {
           cep: cep !== undefined && cep !== null ? cep : usuario.cep,
         },
         {
-          hooks: true, // Mantemos os hooks ativados, mas já criptografamos manualmente acima
+          hooks: true,
         }
       );
 
       // Recarregar o usuário para garantir que temos os dados corretos
       const usuarioAtualizado = await Usuario.findByPk(id);
 
-      // Verificar se usuarioAtualizado não é null antes de acessá-lo
       if (!usuarioAtualizado) {
         res.status(404).json({ error: 'Usuário não encontrado após atualização' });
         return;
       }
-
-      // Debug: mostrar objeto após atualização
-      console.log('Valores do usuário APÓS a atualização:', {
-        id: usuarioAtualizado.id,
-        nome: usuarioAtualizado.nome,
-        estado_id: usuarioAtualizado.estado_id,
-        cidade_id: usuarioAtualizado.cidade_id,
-        senha: usuarioAtualizado.senha ? 'Senha definida e criptografada' : 'Sem senha',
-      });
 
       // Retorna o usuário com a URL pública para a foto
       res.json({
@@ -364,13 +591,39 @@ export class UsuarioController {
         fotoUrl,
       });
     } catch (error) {
-      // Tratamento de erros existente...
       console.error('Erro ao atualizar usuário:', error);
 
       if (error instanceof UniqueConstraintError) {
+        // Identificar qual campo específico está duplicado
+        const duplicatedField = error.errors?.[0]?.path;
+        const duplicateFields: string[] = [];
+        let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
+        let fieldName = '';
+
+        switch (duplicatedField) {
+          case 'email':
+            specificMessage = 'Este e-mail já está sendo usado por outro usuário.';
+            fieldName = 'email';
+            duplicateFields.push('email');
+            break;
+          case 'cpf':
+            specificMessage = 'Este CPF já está sendo usado por outro usuário.';
+            fieldName = 'cpf';
+            duplicateFields.push('cpf');
+            break;
+          case 'telefone':
+            specificMessage = 'Este telefone já está sendo usado por outro usuário.';
+            fieldName = 'telefone';
+            duplicateFields.push('telefone');
+            break;
+        }
+
         res.status(400).json({
           error: 'Dados duplicados',
-          message: 'Email ou CPF já em uso por outro usuário.',
+          message: specificMessage,
+          duplicateField: fieldName,
+          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
+          exists: true,
         });
       } else if (error instanceof ValidationError) {
         res.status(400).json({

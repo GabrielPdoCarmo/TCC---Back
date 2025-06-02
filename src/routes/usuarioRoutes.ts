@@ -11,7 +11,7 @@ router.post('/', upload.single('foto'), (req, res, next) => {
 router.put('/:id', upload.single('foto'), (req, res, next) => {
   UsuarioController.update(req, res, next);
 });
-
+router.post('/validar', UsuarioController.checkDuplicateFields);
 router.delete('/:id', UsuarioController.delete);
 router.get('/:id', UsuarioController.getById); // <-- Corrigido e adicionado
 export default router;
