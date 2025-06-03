@@ -14,5 +14,6 @@ router.get('/pode-cadastrar-pets', authMiddleware, TermoDoacaoController.podeCad
 router.get('/:id', authMiddleware, TermoDoacaoController.buscarPorId);
 router.post('/:id/gerar-pdf', authMiddleware, TermoDoacaoController.gerarPDF);
 router.post('/:id/enviar-pdf', authMiddleware, TermoDoacaoController.enviarPDF);
+router.delete('/:id', authMiddleware, TermoDoacaoController.delete);
 
 export default router;

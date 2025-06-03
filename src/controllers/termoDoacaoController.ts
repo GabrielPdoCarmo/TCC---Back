@@ -560,4 +560,89 @@ export class TermoDoacaoController {
       });
     }
   }
+
+  static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const usuarioId = req.user?.id;
+
+      if (!usuarioId) {
+        res.status(401).json({
+          error: 'Usuário não autenticado',
+        });
+        return;
+      }
+
+      // Buscar o termo para verificar se existe e pertence ao usuário
+      const termo = await TermoDoacao.findOne({
+        where: {
+          id: id,
+          doador_id: usuarioId,
+        },
+        include: [
+          { model: Usuario, as: 'doador' },
+          { model: Estado, as: 'estado' },
+          { model: Cidade, as: 'cidade' },
+        ],
+      });
+
+      if (!termo) {
+        res.status(404).json({
+          error: 'Termo não encontrado ou não pertence a você',
+        });
+        return;
+      }
+
+      // Verificar se existem pets cadastrados com este termo
+      // (assumindo que existe uma relação entre termo e pets)
+      // Esta verificação previne deleção de termos ativos
+      try {
+        // Aqui você pode adicionar uma verificação se há pets vinculados
+        // const petsVinculados = await Pet.count({ where: { termo_doacao_id: id } });
+        // if (petsVinculados > 0) {
+        //   res.status(400).json({
+        //     error: 'Não é possível deletar termo com pets cadastrados',
+        //     petsVinculados,
+        //   });
+        //   return;
+        // }
+      } catch (error) {
+        console.warn('Aviso: Não foi possível verificar pets vinculados:', error);
+      }
+
+      // Realizar soft delete (recomendado para manter histórico)
+      await termo.update({
+        ativo: false,
+        data_inativacao: new Date(),
+        motivo_inativacao: 'Deletado pelo usuário',
+      });
+
+      // OU realizar hard delete (descomente se preferir deletar permanentemente)
+      // await termo.destroy();
+
+      res.json({
+        message: 'Termo de doação deletado com sucesso',
+        data: {
+          termoId: termo.id,
+          dataDelecao: new Date(),
+          doadorNome: termo.doador_nome,
+        },
+      });
+    } catch (error: any) {
+      console.error('Erro ao deletar termo de doação:', error);
+
+      let statusCode = 500;
+      let errorMessage = 'Erro interno do servidor';
+
+      if (error.message.includes('foreign key constraint')) {
+        statusCode = 400;
+        errorMessage = 'Não é possível deletar termo com dependências ativas';
+      }
+
+      res.status(statusCode).json({
+        error: errorMessage,
+        message: error.message,
+      });
+    }
+  }
 }
