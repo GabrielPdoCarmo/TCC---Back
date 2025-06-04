@@ -1,3 +1,5 @@
+// models/termosCompromissoModel.ts - Atualizado com método de atualização de nome
+
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Pet } from './petModel';
 import { Usuario } from './usuarioModel';
@@ -209,6 +211,7 @@ export class TermoCompromisso extends Model {
 
   @BelongsTo(() => Cidade, { foreignKey: 'adotante_cidade_id' })
   cidadeAdotante?: Cidade;
+  
   @BelongsTo(() => Especie, { foreignKey: 'pet_especie_id' })
   especiePet?: Especie;
 
@@ -217,8 +220,8 @@ export class TermoCompromisso extends Model {
 
   @BelongsTo(() => Sexo, { foreignKey: 'pet_sexo_id' })
   sexoPet?: Sexo;
-  // === HOOKS ===
 
+  // === HOOKS ===
   @BeforeSave
   static async atualizarHash(instance: TermoCompromisso) {
     // Atualiza o hash sempre que o termo for salvo
@@ -254,6 +257,7 @@ export class TermoCompromisso extends Model {
     adotante_id: number;
     assinatura_digital: string;
     observacoes?: string;
+    isNameUpdate?: boolean; // 🆕 Flag para indicar se é atualização de nome
   }): Promise<TermoCompromisso> {
     // Buscar dados completos do pet com relacionamentos
     const pet = await Pet.findByPk(data.pet_id, {
@@ -279,13 +283,15 @@ export class TermoCompromisso extends Model {
       throw new Error('Usuário adotante não encontrado');
     }
 
-    // Verificar se já existe termo para este pet
-    const termoExistente = await this.findOne({
-      where: { pet_id: data.pet_id },
-    });
+    // 🆕 Se não é atualização de nome, verificar se já existe termo
+    if (!data.isNameUpdate) {
+      const termoExistente = await this.findOne({
+        where: { pet_id: data.pet_id },
+      });
 
-    if (termoExistente) {
-      throw new Error('Já existe um termo para este pet');
+      if (termoExistente) {
+        throw new Error('Já existe um termo para este pet');
+      }
     }
 
     // Criar termo com snapshot dos dados
@@ -309,8 +315,6 @@ export class TermoCompromisso extends Model {
       doador_nome: pet.responsavel.nome,
       doador_email: pet.responsavel.email,
       doador_telefone: pet.responsavel.telefone,
-      doador_cidade: adotante.cidade_id,
-      doador_estado: adotante.estado_id,
 
       // Snapshot do adotante
       adotante_nome: adotante.nome,
@@ -326,11 +330,63 @@ export class TermoCompromisso extends Model {
       observacoes: data.observacoes,
     });
 
-    // Gerar e salvar hash
-    termo.hash_documento = termo.gerarHashDocumento();
-    await termo.save();
-
     return termo;
+  }
+
+  /**
+   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS DO ADOTANTE
+   * @param termoId - ID do termo a ser atualizado
+   * @param data - Novos dados para atualização
+   */
+  static async atualizarComNovoNome(termoId: number, data: {
+    adotante_id: number;
+    adotante_nome: string;
+    adotante_email: string;
+    adotante_telefone?: string;
+    adotante_cpf?: string;
+    adotante_cidade_id?: number;
+    adotante_estado_id?: number;
+    assinatura_digital: string;
+    observacoes?: string;
+  }): Promise<TermoCompromisso> {
+    console.log('🔄 Atualizando termo de compromisso existente:', { termoId, novoNome: data.adotante_nome });
+
+    // Buscar termo existente
+    const termo = await this.findByPk(termoId);
+    if (!termo) {
+      throw new Error('Termo não encontrado para atualização');
+    }
+
+    // Verificar se pertence ao usuário correto
+    if (termo.adotante_id !== data.adotante_id) {
+      throw new Error('Termo não pertence ao usuário informado');
+    }
+
+    // Atualizar termo com novos dados do adotante
+    const termoAtualizado = await termo.update({
+      // Atualizar snapshot do adotante com dados atuais
+      adotante_nome: data.adotante_nome,
+      adotante_email: data.adotante_email,
+      adotante_telefone: data.adotante_telefone || null,
+      adotante_cpf: data.adotante_cpf || null,
+      adotante_cidade_id: data.adotante_cidade_id || null,
+      adotante_estado_id: data.adotante_estado_id || null,
+
+      // Atualizar assinatura e observações
+      assinatura_digital: data.assinatura_digital,
+      observacoes: data.observacoes || null,
+      data_assinatura: new Date(), // Nova data de assinatura
+
+      // Hash será recalculado automaticamente pelo hook @BeforeSave
+    });
+
+    console.log('✅ Termo de compromisso atualizado com sucesso:', { 
+      termoId: termoAtualizado.id, 
+      novoNome: termoAtualizado.adotante_nome,
+      novaDataAssinatura: termoAtualizado.data_assinatura
+    });
+
+    return termoAtualizado;
   }
 
   /**
@@ -350,6 +406,50 @@ export class TermoCompromisso extends Model {
         { model: Sexo, as: 'sexoPet' },
       ],
     });
+  }
+
+  /**
+   * 🆕 VERIFICAR SE NOME DO ADOTANTE MUDOU E PRECISA ATUALIZAR TERMO
+   * @param petId - ID do pet
+   * @param usuarioId - ID do usuário (adotante)
+   * @param nomeAtualUsuario - Nome atual do usuário
+   * @returns boolean - Se precisa atualizar termo por mudança de nome
+   */
+  static async precisaAtualizarPorNome(petId: number, usuarioId: number, nomeAtualUsuario: string): Promise<{
+    precisaAtualizar: boolean;
+    termo?: TermoCompromisso;
+    nomeNoTermo?: string;
+  }> {
+    try {
+      const termo = await this.findByPet(petId);
+      
+      if (!termo || termo.adotante_id !== usuarioId) {
+        // Não tem termo ou não é do usuário, não precisa atualizar
+        return { precisaAtualizar: false };
+      }
+
+      const nomeNoTermo = termo.adotante_nome || '';
+      const nomesIguais = nomeAtualUsuario.trim() === nomeNoTermo.trim();
+
+      console.log('🔍 Verificando necessidade de atualização por nome (termo compromisso):', {
+        petId,
+        usuarioId,
+        nomeAtual: nomeAtualUsuario,
+        nomeNoTermo,
+        nomesIguais,
+        precisaAtualizar: !nomesIguais
+      });
+
+      return {
+        precisaAtualizar: !nomesIguais,
+        termo,
+        nomeNoTermo,
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao verificar necessidade de atualização:', error);
+      return { precisaAtualizar: false };
+    }
   }
 
   /**
@@ -377,6 +477,26 @@ export class TermoCompromisso extends Model {
         { model: Usuario, as: 'doador' },
       ],
       order: [['data_assinatura', 'DESC']],
+    });
+  }
+
+  /**
+   * 🆕 VERIFICAR SE USUÁRIO TEM TERMO PARA UM PET ESPECÍFICO
+   * @param petId - ID do pet
+   * @param usuarioId - ID do usuário
+   * @returns TermoCompromisso | null
+   */
+  static async findByPetAndAdotante(petId: number, usuarioId: number): Promise<TermoCompromisso | null> {
+    return await this.findOne({
+      where: { 
+        pet_id: petId,
+        adotante_id: usuarioId 
+      },
+      include: [
+        { model: Pet, as: 'pet' },
+        { model: Usuario, as: 'doador' },
+        { model: Usuario, as: 'adotante' },
+      ],
     });
   }
 

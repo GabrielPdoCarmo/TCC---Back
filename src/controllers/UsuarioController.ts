@@ -655,6 +655,7 @@ export class UsuarioController {
 
       if (petCount > 0) {
         res.status(400).json({
+          title: 'Erro ao Excluir Conta',
           error: 'Não é possível excluir a conta',
           message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
             petCount > 1 ? 's' : ''
@@ -663,30 +664,6 @@ export class UsuarioController {
         });
         return;
       }
-
-      // Verificar se o usuário tem uma foto para deletar
-      const fotoPath = usuario.foto;
-      if (fotoPath && !fotoPath.startsWith('file:///')) {
-        try {
-          console.log('Tentando deletar imagem do usuário:', fotoPath);
-          const { error: deleteError } = await supabase.storage.from('user-images').remove([fotoPath]);
-
-          if (deleteError) {
-            console.error('Erro ao deletar imagem do usuário:', deleteError);
-          } else {
-            console.log('Imagem do usuário deletada com sucesso');
-          }
-        } catch (deleteError) {
-          console.error('Erro ao tentar deletar imagem do usuário:', deleteError);
-        }
-      }
-
-      // Deletar o usuário
-      await usuario.destroy();
-      res.json({
-        message: 'Usuário excluído com sucesso',
-        success: true,
-      });
     } catch (error) {
       console.error('Erro ao deletar usuário:', error);
 

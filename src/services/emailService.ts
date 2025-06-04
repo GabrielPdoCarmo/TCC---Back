@@ -76,17 +76,16 @@ export class EmailService {
             filename: 'logo.png',
             content: logoBuffer,
             contentType: 'image/png',
-            cid: 'logo_cachorro' // Content-ID para referenciar no HTML
-          }
+            cid: 'logo_cachorro', // Content-ID para referenciar no HTML
+          },
         ],
       };
 
       // Enviar email
       const info = await this.transporter.sendMail(mailOptions);
-      
+
       console.log('✅ Email enviado com sucesso:', info.messageId);
       console.log('📨 Destinatário:', termo.adotante_email);
-
     } catch (error) {
       console.error('❌ Erro ao enviar email:', error);
       throw new Error('Falha ao enviar email com o termo');
@@ -117,7 +116,7 @@ export class EmailService {
   }
 
   /**
-   * 📝 Gerar conteúdo do PDF (versão compacta)
+   * 📝 Gerar conteúdo do PDF (versão corrigida)
    */
   private gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoCompromisso): void {
     const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
@@ -129,12 +128,11 @@ export class EmailService {
     });
 
     let yPosition = 50;
+    const marginBottom = 70; // Margem inferior reservada para o rodapé
+    const pageHeight = doc.page.height - marginBottom;
 
     // Cabeçalho compacto
-    doc
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text('TERMO DE COMPROMISSO DE ADOÇÃO', 0, yPosition, { align: 'center' });
+    doc.fontSize(18).font('Helvetica-Bold').text('TERMO DE COMPROMISSO DE ADOÇÃO', 0, yPosition, { align: 'center' });
 
     yPosition += 25;
     doc
@@ -153,8 +151,12 @@ export class EmailService {
       .font('Helvetica')
       .text(`Nome: ${termo.pet_nome} | Espécie: ${termo.pet_especie_nome}`, 50, yPosition);
     yPosition += 12;
-    doc.text(`Raça: ${termo.pet_raca_nome} | Sexo: ${termo.pet_sexo_nome} | Idade: ${termo.pet_idade} anos`, 50, yPosition);
-    
+    doc.text(
+      `Raça: ${termo.pet_raca_nome} | Sexo: ${termo.pet_sexo_nome} | Idade: ${termo.pet_idade} anos`,
+      50,
+      yPosition
+    );
+
     if (termo.pet_motivo_doacao) {
       yPosition += 12;
       doc.text(`Motivo da Doação: ${termo.pet_motivo_doacao}`, 50, yPosition);
@@ -166,10 +168,7 @@ export class EmailService {
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
     yPosition += 15;
 
-    doc
-      .fontSize(10)
-      .font('Helvetica')
-      .text(`Nome: ${termo.doador_nome}`, 50, yPosition);
+    doc.fontSize(10).font('Helvetica').text(`Nome: ${termo.doador_nome}`, 50, yPosition);
     yPosition += 12;
     doc.text(`Email: ${termo.doador_email}`, 50, yPosition);
 
@@ -184,10 +183,7 @@ export class EmailService {
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ADOTANTE:', 50, yPosition);
     yPosition += 15;
 
-    doc
-      .fontSize(10)
-      .font('Helvetica')
-      .text(`Nome: ${termo.adotante_nome}`, 50, yPosition);
+    doc.fontSize(10).font('Helvetica').text(`Nome: ${termo.adotante_nome}`, 50, yPosition);
     yPosition += 12;
     doc.text(`Email: ${termo.adotante_email}`, 50, yPosition);
 
@@ -203,11 +199,14 @@ export class EmailService {
 
     yPosition += 20;
 
+    // Verificar se precisa de nova página antes dos compromissos
+    if (yPosition > pageHeight - 150) {
+      doc.addPage();
+      yPosition = 50;
+    }
+
     // Compromissos do Adotante (mais compacto)
-    doc
-      .fontSize(12)
-      .font('Helvetica-Bold')
-      .text('COMPROMISSOS DO ADOTANTE:', 50, yPosition);
+    doc.fontSize(12).font('Helvetica-Bold').text('COMPROMISSOS DO ADOTANTE:', 50, yPosition);
 
     yPosition += 15;
 
@@ -223,6 +222,11 @@ export class EmailService {
 
     doc.fontSize(9).font('Helvetica');
     compromissos.forEach((compromisso, index) => {
+      // Verificar se há espaço para mais uma linha (incluindo espaço para assinatura e rodapé)
+      if (yPosition > pageHeight - 100) { // Reservar mais espaço para assinatura e rodapé
+        doc.addPage();
+        yPosition = 50;
+      }
       doc.text(`${index + 1}. ${compromisso}`, 50, yPosition, { width: 500 });
       yPosition += 11;
     });
@@ -231,28 +235,23 @@ export class EmailService {
 
     // Observações (se existir)
     if (termo.observacoes) {
-      // Verificar se precisa de nova página
-      if (yPosition > 680) {
+      // Verificar se precisa de nova página (reservando espaço para assinatura, declaração e rodapé)
+      const observacoesHeight = Math.min(80, termo.observacoes.length / 8 + 30);
+      if (yPosition + observacoesHeight > pageHeight - 100) { // Mais margem para assinatura e rodapé
         doc.addPage();
         yPosition = 50;
       }
 
-      doc
-        .fontSize(12)
-        .font('Helvetica-Bold')
-        .text('OBSERVAÇÕES:', 50, yPosition);
+      doc.fontSize(12).font('Helvetica-Bold').text('OBSERVAÇÕES:', 50, yPosition);
 
       yPosition += 15;
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .text(termo.observacoes, 50, yPosition, { width: 500 });
-      
-      yPosition += Math.min(60, termo.observacoes.length / 8); // Estimativa de altura
+      doc.fontSize(10).font('Helvetica').text(termo.observacoes, 50, yPosition, { width: 500 });
+
+      yPosition += observacoesHeight - 30;
     }
 
-    // Verificar se precisa de nova página para assinatura
-    if (yPosition > 650) {
+    // Verificar se precisa de nova página para assinatura + declaração + rodapé
+    if (yPosition + 140 > pageHeight) { // 80px assinatura + 30px declaração + 30px rodapé
       doc.addPage();
       yPosition = 50;
     }
@@ -260,30 +259,40 @@ export class EmailService {
     yPosition += 15;
 
     // Assinatura (compacta)
-    doc
-      .fontSize(12)
-      .font('Helvetica-Bold')
-      .text('ASSINATURA DIGITAL:', 50, yPosition);
+    doc.fontSize(12).font('Helvetica-Bold').text('ASSINATURA DIGITAL:', 50, yPosition);
 
     yPosition += 15;
-    doc
-      .fontSize(10)
-      .font('Helvetica')
-      .text(`Assinatura: ${termo.assinatura_digital}`, 50, yPosition);
+    doc.fontSize(10).font('Helvetica').text(`Assinatura: ${termo.assinatura_digital}`, 50, yPosition);
     yPosition += 12;
     doc.text(`Data: ${dataFormatada}`, 50, yPosition);
     yPosition += 12;
     doc.text(`Hash: ${termo.hash_documento}`, 50, yPosition);
 
-    // Rodapé
+    // CORREÇÃO: Rodapé sempre na mesma página
+    yPosition += 30; // Espaço entre assinatura e rodapé
+
+    // Declaração de validade
+    doc
+      .fontSize(10)
+      .font('Helvetica-Oblique')
+      .text(
+        'Este documento foi assinado digitalmente e possui validade legal conforme a legislação vigente.',
+        50,
+        yPosition,
+        { width: 500, align: 'center' }
+      );
+
+    yPosition += 30; // Espaço antes do rodapé
+
+    // Rodapé - Posição relativa ao conteúdo em vez de absoluta
     doc
       .fontSize(8)
       .font('Helvetica')
       .text(
         'Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets',
-        0,
-        doc.page.height - 30,
-        { align: 'center' }
+        50,
+        yPosition, // Usar yPosition em vez de posição absoluta
+        { width: 500, align: 'center' }
       );
   }
 
@@ -352,12 +361,16 @@ export class EmailService {
               <li>Lembre-se dos compromissos assumidos no termo</li>
             </ul>
 
-            ${termo.observacoes ? `
+            ${
+              termo.observacoes
+                ? `
               <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffc107; margin: 20px 0;">
                 <h3>📝 Observações Especiais:</h3>
                 <p>${termo.observacoes}</p>
               </div>
-            ` : ''}
+            `
+                : ''
+            }
 
             <p>Se você tiver alguma dúvida ou precisar de suporte, não hesite em entrar em contato conosco.</p>
             

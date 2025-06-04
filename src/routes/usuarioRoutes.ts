@@ -14,8 +14,9 @@ router.put('/:id', upload.single('foto'), (req, res, next) => {
 router.post('/validar', UsuarioController.checkDuplicateFields);
 router.delete('/:id', UsuarioController.delete);
 router.get('/:id', UsuarioController.getById); // <-- Corrigido e adicionado
-export default router;
+router.post('/validar-edicao', UsuarioController.checkDuplicateFieldsForEdit);
 
 router.get('/email/:email', UsuarioController.getByEmail); // <-- Corrigido e adicionado
 router.post('/recuperar-senha/sendRecoveryCode', UsuarioController.sendRecoveryCode);
 router.post('/recuperar-senha/checkCode', UsuarioController.checkCode);
+export default router;

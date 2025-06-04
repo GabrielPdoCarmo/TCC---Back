@@ -1,4 +1,4 @@
-// models/termoDoacaoModel.ts - Modelo para Termo de Responsabilidade de Doação
+// models/termoDoacaoModel.ts - Modelo atualizado com método de atualização de nome
 
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Usuario } from './usuarioModel';
@@ -312,6 +312,97 @@ export class TermoDoacao extends Model {
   }
 
   /**
+   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS
+   * @param termoId - ID do termo a ser atualizado
+   * @param data - Novos dados para atualização
+   */
+  static async atualizarComNovoNome(termoId: number, data: {
+    doador_id: number;
+    doador_nome: string;
+    doador_email: string;
+    doador_telefone?: string;
+    doador_cpf?: string;
+    doador_cidade_id?: number;
+    doador_estado_id?: number;
+    motivo_doacao: string;
+    assinatura_digital: string;
+    condicoes_adocao?: string;
+    observacoes?: string;
+    confirma_responsavel_legal: boolean;
+    autoriza_visitas: boolean;
+    aceita_acompanhamento: boolean;
+    confirma_saude: boolean;
+    autoriza_verificacao: boolean;
+    compromete_contato: boolean;
+  }): Promise<TermoDoacao> {
+    console.log('🔄 Atualizando termo existente:', { termoId, novoNome: data.doador_nome });
+
+    // Buscar termo existente
+    const termo = await this.findByPk(termoId);
+    if (!termo) {
+      throw new Error('Termo não encontrado para atualização');
+    }
+
+    // Verificar se pertence ao usuário correto
+    if (termo.doador_id !== data.doador_id) {
+      throw new Error('Termo não pertence ao usuário informado');
+    }
+
+    // Validar se todos os compromissos foram aceitos
+    if (
+      !data.confirma_responsavel_legal ||
+      !data.autoriza_visitas ||
+      !data.aceita_acompanhamento ||
+      !data.confirma_saude ||
+      !data.autoriza_verificacao ||
+      !data.compromete_contato
+    ) {
+      throw new Error('Todos os compromissos devem ser aceitos para atualizar o termo');
+    }
+
+    // Atualizar termo com novos dados
+    const termoAtualizado = await termo.update({
+      // Atualizar snapshot do doador com dados atuais
+      doador_nome: data.doador_nome,
+      doador_email: data.doador_email,
+      doador_telefone: data.doador_telefone || null,
+      doador_cpf: data.doador_cpf || null,
+      doador_cidade_id: data.doador_cidade_id || null,
+      doador_estado_id: data.doador_estado_id || null,
+
+      // Atualizar dados específicos do termo
+      motivo_doacao: data.motivo_doacao,
+      condicoes_adocao: data.condicoes_adocao || null,
+      observacoes: data.observacoes || null,
+
+      // Atualizar compromissos
+      confirma_responsavel_legal: data.confirma_responsavel_legal,
+      autoriza_visitas: data.autoriza_visitas,
+      aceita_acompanhamento: data.aceita_acompanhamento,
+      confirma_saude: data.confirma_saude,
+      autoriza_verificacao: data.autoriza_verificacao,
+      compromete_contato: data.compromete_contato,
+
+      // Atualizar assinatura
+      assinatura_digital: data.assinatura_digital,
+      data_assinatura: new Date(), // Nova data de assinatura
+      
+      // Resetar data de envio do PDF para enviar novo
+      data_envio_pdf: null,
+
+      // Hash será recalculado automaticamente pelo hook @BeforeSave
+    });
+
+    console.log('✅ Termo atualizado com sucesso:', { 
+      termoId: termoAtualizado.id, 
+      novoNome: termoAtualizado.doador_nome,
+      novaDataAssinatura: termoAtualizado.data_assinatura
+    });
+
+    return termoAtualizado;
+  }
+
+  /**
    * Buscar termo por usuário
    */
   static async findByDoador(usuarioId: number): Promise<TermoDoacao | null> {
@@ -333,6 +424,48 @@ export class TermoDoacao extends Model {
   static async usuarioPodeCadastrarPets(usuarioId: number): Promise<boolean> {
     const termo = await this.findByDoador(usuarioId);
     return termo !== null;
+  }
+
+  /**
+   * 🆕 VERIFICAR SE NOME DO USUÁRIO MUDOU E PRECISA ATUALIZAR TERMO
+   * @param usuarioId - ID do usuário
+   * @param nomeAtualUsuario - Nome atual do usuário
+   * @returns boolean - Se precisa atualizar termo por mudança de nome
+   */
+  static async precisaAtualizarPorNome(usuarioId: number, nomeAtualUsuario: string): Promise<{
+    precisaAtualizar: boolean;
+    termo?: TermoDoacao;
+    nomeNoTermo?: string;
+  }> {
+    try {
+      const termo = await this.findByDoador(usuarioId);
+      
+      if (!termo) {
+        // Não tem termo, não precisa atualizar
+        return { precisaAtualizar: false };
+      }
+
+      const nomeNoTermo = termo.doador_nome || '';
+      const nomesIguais = nomeAtualUsuario.trim() === nomeNoTermo.trim();
+
+      console.log('🔍 Verificando necessidade de atualização por nome:', {
+        usuarioId,
+        nomeAtual: nomeAtualUsuario,
+        nomeNoTermo,
+        nomesIguais,
+        precisaAtualizar: !nomesIguais
+      });
+
+      return {
+        precisaAtualizar: !nomesIguais,
+        termo,
+        nomeNoTermo,
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao verificar necessidade de atualização:', error);
+      return { precisaAtualizar: false };
+    }
   }
 
   /**

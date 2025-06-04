@@ -155,176 +155,181 @@ export class EmailTermoDoacaoService {
   /**
    * 📝 Gerar conteúdo do PDF
    */
-  private gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoDoacao): void {
-    const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  /**
+ * 📝 Gerar conteúdo do PDF
+ */
+private gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoDoacao): void {
+  const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-    let yPosition = 50;
+  let yPosition = 50;
 
-    // Cabeçalho
-    doc
-      .fontSize(20)
-      .font('Helvetica-Bold')
-      .text('TERMO DE RESPONSABILIDADE DE DOAÇÃO', 0, yPosition, { align: 'center' });
+  // Cabeçalho
+  doc
+    .fontSize(20)
+    .font('Helvetica-Bold')
+    .text('TERMO DE RESPONSABILIDADE DE DOAÇÃO', 0, yPosition, { align: 'center' });
 
-    yPosition += 30;
-    doc
-      .fontSize(12)
-      .font('Helvetica')
-      .text(`Documento ID: ${termo.id} | Data: ${dataFormatada}`, 0, yPosition, { align: 'center' });
+  yPosition += 30;
+  doc
+    .fontSize(12)
+    .font('Helvetica')
+    .text(`Documento ID: ${termo.id} | Data: ${dataFormatada}`, 0, yPosition, { align: 'center' });
 
-    yPosition += 40;
+  yPosition += 40;
 
-    // Dados do Doador
-    doc.fontSize(14).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
-    yPosition += 20;
+  // Dados do Doador
+  doc.fontSize(14).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
+  yPosition += 20;
 
-    doc
-      .fontSize(11)
-      .font('Helvetica')
-      .text(`Nome Completo: ${termo.doador_nome}`, 50, yPosition);
+  doc
+    .fontSize(11)
+    .font('Helvetica')
+    .text(`Nome Completo: ${termo.doador_nome}`, 50, yPosition);
+  yPosition += 15;
+  doc.text(`Email: ${termo.doador_email}`, 50, yPosition);
+  
+  // ✅ TELEFONE FORMATADO
+  yPosition += 15;
+  const telefoneFormatado = this.formatarTelefone(termo.doador_telefone);
+  doc.text(`Telefone: ${telefoneFormatado}`, 50, yPosition);
+
+  if (termo.doador_cpf) {
     yPosition += 15;
-    doc.text(`Email: ${termo.doador_email}`, 50, yPosition);
-    
-    // ✅ TELEFONE FORMATADO
-    yPosition += 15;
-    const telefoneFormatado = this.formatarTelefone(termo.doador_telefone);
-    doc.text(`Telefone: ${telefoneFormatado}`, 50, yPosition);
-
-    if (termo.doador_cpf) {
-      yPosition += 15;
-      doc.text(`CPF: ${termo.doador_cpf}`, 50, yPosition);
-    }
-
-    // Incluir dados de localização se disponíveis
-    if (termo.estado?.nome || termo.cidade?.nome) {
-      yPosition += 15;
-      const localizacao = [termo.cidade?.nome, termo.estado?.nome].filter(Boolean).join(' - ');
-      doc.text(`Localização: ${localizacao}`, 50, yPosition);
-    }
-
-    yPosition += 30;
-
-    // Motivo da Doação
-    doc.fontSize(14).font('Helvetica-Bold').text('MOTIVO DA DOAÇÃO:', 50, yPosition);
-    yPosition += 20;
-
-    doc
-      .fontSize(11)
-      .font('Helvetica')
-      .text(termo.motivo_doacao, 50, yPosition, { width: 500, align: 'justify' });
-    
-    yPosition += Math.max(30, Math.ceil(termo.motivo_doacao.length / 80) * 15);
-
-    // Condições de Adoção (se houver)
-    if (termo.condicoes_adocao) {
-      yPosition += 15;
-      doc.fontSize(14).font('Helvetica-Bold').text('CONDIÇÕES PARA ADOÇÃO:', 50, yPosition);
-      yPosition += 20;
-
-      doc
-        .fontSize(11)
-        .font('Helvetica')
-        .text(termo.condicoes_adocao, 50, yPosition, { width: 500, align: 'justify' });
-      
-      yPosition += Math.max(30, Math.ceil(termo.condicoes_adocao.length / 80) * 15);
-    }
-
-    // Verificar se precisa de nova página
-    if (yPosition > 650) {
-      doc.addPage();
-      yPosition = 50;
-    }
-
-    // Compromissos e Responsabilidades
-    doc.fontSize(14).font('Helvetica-Bold').text('COMPROMISSOS E RESPONSABILIDADES:', 50, yPosition);
-    yPosition += 20;
-
-    const compromissos = [
-      'Confirmo que sou responsável legal pelos pets que cadastrar na plataforma.',
-      'Autorizo visitas de potenciais adotantes mediante agendamento prévio.',
-      'Aceito acompanhamento pós-adoção para garantir o bem-estar dos animais.',
-      'Comprometo-me a fornecer informações verdadeiras sobre a saúde dos pets.',
-      'Autorizo verificação de antecedentes dos potenciais adotantes.',
-      'Comprometo-me a manter contato durante todo o processo de adoção.',
-    ];
-
-    doc.fontSize(10).font('Helvetica');
-    compromissos.forEach((compromisso, index) => {
-      const prefixo = termo.validarCompromissos() ? '✓' : '☐';
-      doc.text(`${prefixo} ${compromisso}`, 50, yPosition, { width: 500 });
-      yPosition += 18;
-    });
-
-    yPosition += 20;
-
-    // Observações (se houver)
-    if (termo.observacoes) {
-      if (yPosition > 680) {
-        doc.addPage();
-        yPosition = 50;
-      }
-
-      doc.fontSize(14).font('Helvetica-Bold').text('OBSERVAÇÕES ADICIONAIS:', 50, yPosition);
-      yPosition += 20;
-
-      doc
-        .fontSize(11)
-        .font('Helvetica')
-        .text(termo.observacoes, 50, yPosition, { width: 500, align: 'justify' });
-      
-      yPosition += Math.max(30, Math.ceil(termo.observacoes.length / 80) * 15);
-    }
-
-    // Verificar se precisa de nova página para assinatura
-    if (yPosition > 650) {
-      doc.addPage();
-      yPosition = 50;
-    }
-
-    // Assinatura Digital
-    yPosition += 20;
-    doc.fontSize(14).font('Helvetica-Bold').text('ASSINATURA DIGITAL:', 50, yPosition);
-    yPosition += 25;
-
-    doc
-      .fontSize(11)
-      .font('Helvetica')
-      .text(`Assinado digitalmente por: ${termo.assinatura_digital}`, 50, yPosition);
-    yPosition += 15;
-    doc.text(`Data e hora: ${dataFormatada}`, 50, yPosition);
-    yPosition += 15;
-    doc.text(`Hash do documento: ${termo.hash_documento}`, 50, yPosition);
-
-    yPosition += 30;
-
-    // Declaração de validade
-    doc
-      .fontSize(10)
-      .font('Helvetica-Oblique')
-      .text(
-        'Este documento foi assinado digitalmente e possui validade legal conforme a legislação vigente.',
-        50,
-        yPosition,
-        { width: 500, align: 'center' }
-      );
-
-    // Rodapé
-    doc
-      .fontSize(8)
-      .font('Helvetica')
-      .text(
-        'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção de Pets',
-        0,
-        doc.page.height - 30,
-        { align: 'center' }
-      );
+    doc.text(`CPF: ${termo.doador_cpf}`, 50, yPosition);
   }
+
+  // Incluir dados de localização se disponíveis
+  if (termo.estado?.nome || termo.cidade?.nome) {
+    yPosition += 15;
+    const localizacao = [termo.cidade?.nome, termo.estado?.nome].filter(Boolean).join(' - ');
+    doc.text(`Localização: ${localizacao}`, 50, yPosition);
+  }
+
+  yPosition += 30;
+
+  // Motivo da Doação
+  doc.fontSize(14).font('Helvetica-Bold').text('MOTIVO DA DOAÇÃO:', 50, yPosition);
+  yPosition += 20;
+
+  doc
+    .fontSize(11)
+    .font('Helvetica')
+    .text(termo.motivo_doacao, 50, yPosition, { width: 500, align: 'justify' });
+  
+  yPosition += Math.max(30, Math.ceil(termo.motivo_doacao.length / 80) * 15);
+
+  // Condições de Adoção (se houver)
+  if (termo.condicoes_adocao) {
+    yPosition += 15;
+    doc.fontSize(14).font('Helvetica-Bold').text('CONDIÇÕES PARA ADOÇÃO:', 50, yPosition);
+    yPosition += 20;
+
+    doc
+      .fontSize(11)
+      .font('Helvetica')
+      .text(termo.condicoes_adocao, 50, yPosition, { width: 500, align: 'justify' });
+    
+    yPosition += Math.max(30, Math.ceil(termo.condicoes_adocao.length / 80) * 15);
+  }
+
+  // Verificar se precisa de nova página antes dos compromissos
+  if (yPosition > 650) {
+    doc.addPage();
+    yPosition = 50;
+  }
+
+  // Compromissos e Responsabilidades
+  doc.fontSize(14).font('Helvetica-Bold').text('COMPROMISSOS E RESPONSABILIDADES:', 50, yPosition);
+  yPosition += 20;
+
+  const compromissos = [
+    'Confirmo que sou responsável legal pelos pets que cadastrar na plataforma.',
+    'Autorizo visitas de potenciais adotantes mediante agendamento prévio.',
+    'Aceito acompanhamento pós-adoção para garantir o bem-estar dos animais.',
+    'Comprometo-me a fornecer informações verdadeiras sobre a saúde dos pets.',
+    'Autorizo verificação de antecedentes dos potenciais adotantes.',
+    'Comprometo-me a manter contato durante todo o processo de adoção.',
+  ];
+
+  doc.fontSize(10).font('Helvetica');
+  compromissos.forEach((compromisso, index) => {
+    const prefixo = termo.validarCompromissos() ? '✓' : '☐';
+    doc.text(`${prefixo} ${compromisso}`, 50, yPosition, { width: 500 });
+    yPosition += 18;
+  });
+
+  yPosition += 20;
+
+  // Observações (se houver)
+  if (termo.observacoes) {
+    if (yPosition > 680) {
+      doc.addPage();
+      yPosition = 50;
+    }
+
+    doc.fontSize(14).font('Helvetica-Bold').text('OBSERVAÇÕES ADICIONAIS:', 50, yPosition);
+    yPosition += 20;
+
+    doc
+      .fontSize(11)
+      .font('Helvetica')
+      .text(termo.observacoes, 50, yPosition, { width: 500, align: 'justify' });
+    
+    yPosition += Math.max(30, Math.ceil(termo.observacoes.length / 80) * 15);
+  }
+
+  // Verificar se precisa de nova página para assinatura (com mais margem para o rodapé)
+  if (yPosition > 600) {
+    doc.addPage();
+    yPosition = 50;
+  }
+
+  // Assinatura Digital
+  yPosition += 20;
+  doc.fontSize(14).font('Helvetica-Bold').text('ASSINATURA DIGITAL:', 50, yPosition);
+  yPosition += 25;
+
+  doc
+    .fontSize(11)
+    .font('Helvetica')
+    .text(`Assinado digitalmente por: ${termo.assinatura_digital}`, 50, yPosition);
+  yPosition += 15;
+  doc.text(`Data e hora: ${dataFormatada}`, 50, yPosition);
+  yPosition += 15;
+  doc.text(`Hash do documento: ${termo.hash_documento}`, 50, yPosition);
+
+  yPosition += 30;
+
+  // Declaração de validade
+  doc
+    .fontSize(10)
+    .font('Helvetica-Oblique')
+    .text(
+      'Este documento foi assinado digitalmente e possui validade legal conforme a legislação vigente.',
+      50,
+      yPosition,
+      { width: 500, align: 'center' }
+    );
+
+  yPosition += 40; // Espaço antes do rodapé
+
+  // Rodapé - Posição relativa ao conteúdo em vez de absoluta
+  doc
+    .fontSize(8)
+    .font('Helvetica')
+    .text(
+      'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção de Pets',
+      50,
+      yPosition, // Usar yPosition em vez de doc.page.height - 30
+      { width: 500, align: 'center' }
+    );
+}
 
   /**
    * 📧 Gerar HTML do email

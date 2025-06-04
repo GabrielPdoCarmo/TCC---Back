@@ -1,4 +1,4 @@
-// controllers/termoDoacaoController.ts - Controller para Termo de Doação
+// controllers/termoDoacaoController.ts - Controller atualizado com verificação de nome
 
 import { Request, Response } from 'express';
 import { TermoDoacao } from '../models/termoDoacaoModel';
@@ -27,6 +27,8 @@ interface CreateTermoDoacaoBody {
   confirmaSaude: boolean;
   autorizaVerificacao: boolean;
   compromesteContato: boolean;
+  // 🆕 Flag para indicar se é atualização de nome
+  isNameUpdate?: boolean;
 }
 
 export class TermoDoacaoController {
@@ -83,7 +85,7 @@ export class TermoDoacaoController {
   }
 
   /**
-   * 📝 Criar novo termo de doação
+   * 📝 Criar novo termo de doação OU atualizar termo existente com novo nome
    * POST /api/termos-doacao
    */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -108,6 +110,7 @@ export class TermoDoacaoController {
         confirmaSaude,
         autorizaVerificacao,
         compromesteContato,
+        isNameUpdate = false, // 🆕 Flag para indicar atualização de nome
       }: CreateTermoDoacaoBody = req.body;
 
       // Validações básicas
@@ -160,12 +163,64 @@ export class TermoDoacaoController {
         return;
       }
 
+      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
+      const termoExistente = await TermoDoacao.findByDoador(doadorId);
+
+      if (termoExistente && isNameUpdate) {
+        console.log('🔄 Atualizando termo existente com novo nome do usuário...');
+        
+        // Atualizar termo existente com novos dados
+        const termoAtualizado = await TermoDoacao.atualizarComNovoNome(termoExistente.id, {
+          doador_id: doadorId,
+          doador_nome: dadosUsuario.nome || assinaturaDigital,
+          doador_email: dadosUsuario.email,
+          doador_telefone: dadosUsuario.telefone,
+          doador_cpf: dadosUsuario.cpf,
+          doador_cidade_id: dadosUsuario.cidade_id,
+          doador_estado_id: dadosUsuario.estado_id,
+          motivo_doacao: motivoDoacao,
+          assinatura_digital: assinaturaDigital,
+          condicoes_adocao: condicoesAdocao,
+          observacoes: observacoes,
+          confirma_responsavel_legal: confirmaResponsavelLegal,
+          autoriza_visitas: autorizaVisitas,
+          aceita_acompanhamento: aceitaAcompanhamento,
+          confirma_saude: confirmaSaude,
+          autoriza_verificacao: autorizaVerificacao,
+          compromete_contato: compromesteContato,
+        });
+
+        // Buscar termo completo para resposta
+        const termoCompleto = await TermoDoacao.findByDoador(doadorId);
+
+        // Enviar email com novo PDF (não bloqueia a resposta)
+        emailTermoDoacaoService
+          .enviarTermoDoacaoPDF(termoCompleto!)
+          .catch((error) => console.error('Erro ao enviar email com termo atualizado:', error));
+
+        res.status(200).json({
+          message: 'Termo de doação atualizado com sucesso (novo nome)',
+          data: termoCompleto,
+          updated: true,
+        });
+        return;
+      }
+
+      // 🔄 LÓGICA ORIGINAL - CRIAR NOVO TERMO
+      if (termoExistente && !isNameUpdate) {
+        res.status(409).json({
+          error: 'Você já possui um termo de doação',
+          data: termoExistente,
+        });
+        return;
+      }
+
       // Criar termo usando o método do modelo com dados completos do usuário
       const novoTermo = await TermoDoacao.criarComDados({
         doador_id: doadorId,
         doador_nome: dadosUsuario.nome || assinaturaDigital,
         doador_email: dadosUsuario.email,
-        doador_telefone: dadosUsuario.telefone, // ✅ TELEFONE DO USUÁRIO
+        doador_telefone: dadosUsuario.telefone,
         doador_cpf: dadosUsuario.cpf,
         doador_cidade_id: dadosUsuario.cidade_id,
         doador_estado_id: dadosUsuario.estado_id,
@@ -192,9 +247,10 @@ export class TermoDoacaoController {
       res.status(201).json({
         message: 'Termo de doação criado com sucesso',
         data: termoCompleto,
+        updated: false,
       });
     } catch (error: any) {
-      console.error('Erro ao criar termo de doação:', error);
+      console.error('Erro ao criar/atualizar termo de doação:', error);
 
       let statusCode = 500;
       let errorMessage = 'Erro interno do servidor';
@@ -324,11 +380,7 @@ export class TermoDoacaoController {
   }
 
   /**
-   * ✅ Verificar se usuário pode cadastrar pets
-   * GET /api/termos-doacao/pode-cadastrar-pets
-   */
-  /**
-   * ✅ Verificar se usuário pode cadastrar pets
+   * ✅ Verificar se usuário pode cadastrar pets (COM VERIFICAÇÃO DE NOME ATUALIZADO)
    * GET /api/termos-doacao/pode-cadastrar-pets
    */
   static async podeCadastrarPets(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -345,28 +397,78 @@ export class TermoDoacaoController {
 
       console.log(`🔍 Verificando se usuário ${usuarioId} pode cadastrar pets...`);
 
+      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO
+      let dadosUsuarioAtual;
+      try {
+        dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
+        if (!dadosUsuarioAtual) {
+          res.status(200).json({
+            message: 'Usuário não encontrado',
+            data: {
+              podecastrar: false,
+              temTermo: false,
+              nomeDesatualizado: false,
+            },
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar dados atuais do usuário:', error);
+        res.status(200).json({
+          message: 'Erro ao buscar dados do usuário',
+          data: {
+            podecastrar: false,
+            temTermo: false,
+            nomeDesatualizado: false,
+          },
+        });
+        return;
+      }
+
       // Verificar se usuário pode cadastrar pets
       let podecastrar = false;
       let temTermo = false;
+      let nomeDesatualizado = false; // 🆕 Flag para indicar se nome mudou
 
       try {
-        podecastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
-
-        // Se pode cadastrar, é porque tem termo
-        if (podecastrar) {
+        const termo = await TermoDoacao.findByDoador(usuarioId);
+        
+        if (termo) {
           temTermo = true;
-          console.log(`✅ Usuário ${usuarioId} pode cadastrar pets`);
+          
+          // 🆕 VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
+          const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
+          const nomeNoTermo = termo.doador_nome || '';
+          
+          console.log(`📋 Comparando nomes:`, {
+            nomeAtual: nomeAtualUsuario,
+            nomeNoTermo: nomeNoTermo,
+            iguais: nomeAtualUsuario === nomeNoTermo
+          });
+
+          if (nomeAtualUsuario !== nomeNoTermo) {
+            // Nome foi alterado - precisa reAssinar termo
+            nomeDesatualizado = true;
+            podecastrar = false;
+            console.log(`⚠️ Nome desatualizado! Usuário ${usuarioId} precisa reAssinar termo`);
+          } else {
+            // Nome está igual - pode cadastrar normalmente
+            podecastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
+            console.log(`✅ Nome atualizado! Usuário ${usuarioId} pode cadastrar: ${podecastrar}`);
+          }
         } else {
-          // Verificar se tem termo mas não pode cadastrar
-          const termo = await TermoDoacao.findByDoador(usuarioId);
-          temTermo = !!termo;
-          console.log(`ℹ️ Usuário ${usuarioId} - temTermo: ${temTermo}, podecastrar: ${podecastrar}`);
+          // Não tem termo
+          console.log(`ℹ️ Usuário ${usuarioId} não possui termo`);
+          podecastrar = false;
+          temTermo = false;
         }
+
       } catch (modelError: any) {
         console.error(`❌ Erro ao verificar termo do usuário ${usuarioId}:`, modelError);
         // Em caso de erro, assumir que não pode cadastrar por segurança
         podecastrar = false;
         temTermo = false;
+        nomeDesatualizado = false;
       }
 
       // SEMPRE retornar status 200 para não quebrar o frontend
@@ -375,6 +477,7 @@ export class TermoDoacaoController {
         data: {
           podecastrar,
           temTermo,
+          nomeDesatualizado, // 🆕 Indica se precisa reAssinar por nome diferente
         },
       });
     } catch (error: any) {
@@ -386,6 +489,7 @@ export class TermoDoacaoController {
         data: {
           podecastrar: false,
           temTermo: false,
+          nomeDesatualizado: false,
         },
       });
     }
@@ -593,32 +697,12 @@ export class TermoDoacaoController {
         return;
       }
 
-      // Verificar se existem pets cadastrados com este termo
-      // (assumindo que existe uma relação entre termo e pets)
-      // Esta verificação previne deleção de termos ativos
-      try {
-        // Aqui você pode adicionar uma verificação se há pets vinculados
-        // const petsVinculados = await Pet.count({ where: { termo_doacao_id: id } });
-        // if (petsVinculados > 0) {
-        //   res.status(400).json({
-        //     error: 'Não é possível deletar termo com pets cadastrados',
-        //     petsVinculados,
-        //   });
-        //   return;
-        // }
-      } catch (error) {
-        console.warn('Aviso: Não foi possível verificar pets vinculados:', error);
-      }
-
       // Realizar soft delete (recomendado para manter histórico)
       await termo.update({
         ativo: false,
         data_inativacao: new Date(),
         motivo_inativacao: 'Deletado pelo usuário',
       });
-
-      // OU realizar hard delete (descomente se preferir deletar permanentemente)
-      // await termo.destroy();
 
       res.json({
         message: 'Termo de doação deletado com sucesso',

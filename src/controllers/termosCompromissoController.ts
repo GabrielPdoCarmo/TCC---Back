@@ -1,4 +1,4 @@
-// controllers/termosCompromissoController.ts - Versão com Envio de Email
+// controllers/termosCompromissoController.ts - Atualizado com verificação de nome
 
 import { Request, Response } from 'express';
 import { TermoCompromisso } from '../models/termosCompromissoModel';
@@ -20,6 +20,8 @@ interface CreateTermoBody {
   petId: number;
   assinaturaDigital: string;
   observacoes?: string;
+  // 🆕 Flag para indicar se é atualização de nome
+  isNameUpdate?: boolean;
 }
 
 export class TermosCompromissoController {
@@ -75,7 +77,7 @@ export class TermosCompromissoController {
   }
 
   /**
-   * 📝 Criar novo termo de compromisso
+   * 📝 Criar novo termo de compromisso OU atualizar termo existente com novo nome
    * POST /api/termos-compromisso
    */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -89,7 +91,12 @@ export class TermosCompromissoController {
         return;
       }
 
-      const { petId, assinaturaDigital, observacoes }: CreateTermoBody = req.body;
+      const { 
+        petId, 
+        assinaturaDigital, 
+        observacoes,
+        isNameUpdate = false // 🆕 Flag para indicar atualização de nome
+      }: CreateTermoBody = req.body;
 
       // Validações básicas
       if (!petId || !assinaturaDigital) {
@@ -116,12 +123,83 @@ export class TermosCompromissoController {
         return;
       }
 
+      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO
+      let dadosUsuario;
+      try {
+        dadosUsuario = await Usuario.findByPk(adotanteId);
+        if (!dadosUsuario) {
+          res.status(404).json({
+            error: 'Usuário não encontrado',
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar dados do usuário:', error);
+        res.status(500).json({
+          error: 'Erro ao buscar dados do usuário',
+        });
+        return;
+      }
+
+      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
+      const termoExistente = await TermoCompromisso.findByPet(petId);
+
+      if (termoExistente && isNameUpdate) {
+        console.log('🔄 Atualizando termo existente com novo nome do usuário...');
+        
+        // Verificar se o termo pertence ao usuário atual
+        if (termoExistente.adotante_id !== adotanteId) {
+          res.status(403).json({
+            error: 'Este termo não pertence a você',
+          });
+          return;
+        }
+
+        // Atualizar termo existente com novos dados
+        const termoAtualizado = await TermoCompromisso.atualizarComNovoNome(termoExistente.id, {
+          adotante_id: adotanteId,
+          adotante_nome: dadosUsuario.nome || assinaturaDigital,
+          adotante_email: dadosUsuario.email,
+          adotante_telefone: dadosUsuario.telefone,
+          adotante_cpf: dadosUsuario.cpf,
+          adotante_cidade_id: dadosUsuario.cidade_id,
+          adotante_estado_id: dadosUsuario.estado_id,
+          assinatura_digital: assinaturaDigital,
+          observacoes: observacoes,
+        });
+
+        // Buscar termo completo para resposta
+        const termoCompleto = await TermoCompromisso.findByPet(petId);
+
+        // Enviar email com novo PDF (não bloqueia a resposta)
+        emailService
+          .enviarTermoPDF(termoCompleto!)
+          .catch((error) => console.error('Erro ao enviar email com termo atualizado:', error));
+
+        res.status(200).json({
+          message: 'Termo de compromisso atualizado com sucesso (novo nome)',
+          data: termoCompleto,
+          updated: true,
+        });
+        return;
+      }
+
+      // 🔄 LÓGICA ORIGINAL - CRIAR NOVO TERMO
+      if (termoExistente && !isNameUpdate) {
+        res.status(409).json({
+          error: 'Já existe um termo de compromisso para este pet',
+          data: termoExistente,
+        });
+        return;
+      }
+
       // Criar termo usando o método simplificado
       const novoTermo = await TermoCompromisso.criarComDados({
         pet_id: petId,
         adotante_id: adotanteId,
         assinatura_digital: assinaturaDigital,
         observacoes: observacoes,
+        isNameUpdate, // 🆕 Passar flag para o modelo
       });
 
       // 🆕 Buscar termo completo para resposta
@@ -130,9 +208,10 @@ export class TermosCompromissoController {
       res.status(201).json({
         message: 'Termo de compromisso criado com sucesso',
         data: termoCompleto,
+        updated: false,
       });
     } catch (error: any) {
-      console.error('Erro ao criar termo:', error);
+      console.error('Erro ao criar/atualizar termo:', error);
 
       let statusCode = 500;
       let errorMessage = 'Erro interno do servidor';
@@ -193,24 +272,200 @@ export class TermosCompromissoController {
   }
 
   /**
-   * 🔍 Buscar termo por pet
+   * 🔍 Buscar termo por pet (COM VERIFICAÇÃO DE NOME ATUALIZADO)
    * GET /api/termos-compromisso/pet/:petId
    */
-  static async buscarPorPet(req: Request, res: Response): Promise<void> {
+  static async buscarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { petId } = req.params;
+      const usuarioId = req.user?.id;
 
       const termo = await TermoCompromisso.findByPet(parseInt(petId));
 
+      if (!termo) {
+        res.status(404).json({
+          error: 'Termo não encontrado para este pet',
+          data: null,
+        });
+        return;
+      }
+
+      // 🆕 SE USUÁRIO ESTÁ LOGADO, VERIFICAR SE NOME MUDOU
+      let nomeDesatualizado = false;
+
+      if (usuarioId && termo.adotante_id === usuarioId) {
+        try {
+          // Buscar dados atuais do usuário
+          const dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
+          
+          if (dadosUsuarioAtual) {
+            const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
+            const nomeNoTermo = termo.adotante_nome || '';
+            
+            if (nomeAtualUsuario !== nomeNoTermo) {
+              nomeDesatualizado = true;
+              console.log(`⚠️ Nome desatualizado no termo! Usuário ${usuarioId} - Atual: "${nomeAtualUsuario}" vs Termo: "${nomeNoTermo}"`);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Erro ao verificar nome do usuário:', error);
+        }
+      }
+
       res.json({
         message: 'Termo encontrado',
-        data: termo,
+        data: {
+          ...termo.toJSON(),
+          nomeDesatualizado, // 🆕 Flag indicando se nome mudou
+        },
       });
     } catch (error: any) {
       console.error('Erro ao buscar termo por pet:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
+      });
+    }
+  }
+
+  /**
+   * ✅ 🆕 VERIFICAR SE USUÁRIO PODE ADOTAR PET (COM VERIFICAÇÃO DE NOME)
+   * GET /api/termos-compromisso/pode-adotar/:petId
+   */
+  static async podeAdotar(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { petId } = req.params;
+      const usuarioId = req.user?.id;
+
+      if (!usuarioId) {
+        res.status(401).json({
+          error: 'Usuário não autenticado',
+          message: 'Token de acesso inválido ou expirado',
+        });
+        return;
+      }
+
+      console.log(`🔍 Verificando se usuário ${usuarioId} pode adotar pet ${petId}...`);
+
+      // Verificar se pet existe
+      const pet = await Pet.findByPk(petId);
+      if (!pet) {
+        res.status(404).json({
+          error: 'Pet não encontrado',
+        });
+        return;
+      }
+
+      // Verificar se não é o próprio pet do usuário
+      if (pet.usuario_id === usuarioId) {
+        res.status(200).json({
+          message: 'Verificação concluída',
+          data: {
+            podeAdotar: false,
+            temTermo: false,
+            nomeDesatualizado: false,
+            motivo: 'proprio_pet',
+          },
+        });
+        return;
+      }
+
+      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO
+      let dadosUsuarioAtual;
+      try {
+        dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
+        if (!dadosUsuarioAtual) {
+          res.status(200).json({
+            message: 'Usuário não encontrado',
+            data: {
+              podeAdotar: false,
+              temTermo: false,
+              nomeDesatualizado: false,
+            },
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar dados atuais do usuário:', error);
+        res.status(200).json({
+          message: 'Erro ao buscar dados do usuário',
+          data: {
+            podeAdotar: false,
+            temTermo: false,
+            nomeDesatualizado: false,
+          },
+        });
+        return;
+      }
+
+      // Verificar se já existe termo
+      let podeAdotar = false;
+      let temTermo = false;
+      let nomeDesatualizado = false;
+
+      try {
+        const termo = await TermoCompromisso.findByPet(parseInt(petId));
+        
+        if (termo && termo.adotante_id === usuarioId) {
+          temTermo = true;
+          
+          // 🆕 VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
+          const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
+          const nomeNoTermo = termo.adotante_nome || '';
+          
+          console.log(`📋 Comparando nomes:`, {
+            nomeAtual: nomeAtualUsuario,
+            nomeNoTermo: nomeNoTermo,
+            iguais: nomeAtualUsuario === nomeNoTermo
+          });
+
+          if (nomeAtualUsuario !== nomeNoTermo) {
+            // Nome foi alterado - precisa atualizar termo
+            nomeDesatualizado = true;
+            podeAdotar = false;
+            console.log(`⚠️ Nome desatualizado! Usuário ${usuarioId} precisa atualizar termo`);
+          } else {
+            // Nome está igual - pode adotar normalmente
+            podeAdotar = true;
+            console.log(`✅ Nome atualizado! Usuário ${usuarioId} pode adotar`);
+          }
+        } else if (termo && termo.adotante_id !== usuarioId) {
+          // Termo existe mas é de outro usuário
+          temTermo = true;
+          podeAdotar = false;
+          console.log(`ℹ️ Pet já tem termo de outro usuário`);
+        } else {
+          // Não tem termo
+          podeAdotar = true;
+          temTermo = false;
+          console.log(`ℹ️ Pet não possui termo, usuário pode adotar`);
+        }
+
+      } catch (error: any) {
+        console.error(`❌ Erro ao verificar termo do pet ${petId}:`, error);
+        podeAdotar = false;
+        temTermo = false;
+        nomeDesatualizado = false;
+      }
+
+      res.status(200).json({
+        message: 'Verificação concluída',
+        data: {
+          podeAdotar,
+          temTermo,
+          nomeDesatualizado, // 🆕 Indica se precisa atualizar por nome diferente
+        },
+      });
+    } catch (error: any) {
+      console.error('❌ Erro ao verificar se usuário pode adotar:', error);
+
+      res.status(200).json({
+        message: 'Erro na verificação',
+        data: {
+          podeAdotar: false,
+          temTermo: false,
+          nomeDesatualizado: false,
+        },
       });
     }
   }
