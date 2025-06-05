@@ -965,4 +965,157 @@ export class TermoAdocaoController {
       { width: 500, align: 'center' }
     );
   }
+  // Adicione este método no TermoAdocaoController (dentro da classe)
+
+/**
+ * 🗑️ Deletar termo de compromisso
+ * DELETE /api/termos-compromisso/:id
+ */
+static async deletar(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const usuarioId = req.user?.id;
+
+    if (!usuarioId) {
+      res.status(401).json({
+        error: 'Usuário não autenticado',
+      });
+      return;
+    }
+
+    console.log(`🗑️ Tentativa de deletar termo ${id} pelo usuário ${usuarioId}`);
+
+    // Buscar termo com todas as informações
+    const termo = await TermoAdocao.findOne({
+      where: { id: id },
+      include: [
+        { model: Pet, as: 'pet' },
+        { model: Usuario, as: 'doador' },
+        { model: Usuario, as: 'adotante' },
+      ],
+    });
+
+    if (!termo) {
+      res.status(404).json({
+        error: 'Termo não encontrado',
+      });
+      return;
+    }
+
+    // Verificar se o usuário tem permissão para deletar
+    // Pode deletar se for o doador OU o adotante
+    const temPermissao = 
+      termo.doador_id === usuarioId || 
+      termo.adotante_id === usuarioId;
+
+    if (!temPermissao) {
+      res.status(403).json({
+        error: 'Você não tem permissão para deletar este termo',
+        message: 'Apenas o doador ou adotante podem deletar o termo de compromisso',
+      });
+      return;
+    }
+
+    // Salvar informações para log antes de deletar
+    const petNome = termo.pet_nome;
+    const doadorNome = termo.doador_nome;
+    const adotanteNome = termo.adotante_nome;
+
+    // Deletar o termo
+    await termo.destroy();
+
+    console.log(`✅ Termo ${id} deletado com sucesso`);
+    console.log(`📋 Pet: ${petNome}`);
+    console.log(`👤 Doador: ${doadorNome}`);
+    console.log(`🏠 Adotante: ${adotanteNome}`);
+    console.log(`🗑️ Deletado por: ${usuarioId === termo.doador_id ? 'Doador' : 'Adotante'}`);
+
+    res.json({
+      message: 'Termo de compromisso deletado com sucesso',
+      data: {
+        termoId: id,
+        petNome: petNome,
+        deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
+        dataDelecao: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao deletar termo:', error);
+
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: error.message,
+    });
+  }
+}
+
+/**
+ * 🗑️ Deletar termo por pet ID (método auxiliar)
+ * DELETE /api/termos-compromisso/pet/:petId
+ */
+static async deletarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { petId } = req.params;
+    const usuarioId = req.user?.id;
+
+    if (!usuarioId) {
+      res.status(401).json({
+        error: 'Usuário não autenticado',
+      });
+      return;
+    }
+
+    console.log(`🗑️ Tentativa de deletar termo do pet ${petId} pelo usuário ${usuarioId}`);
+
+    // Buscar termo pelo pet
+    const termo = await TermoAdocao.findByPet(parseInt(petId));
+
+    if (!termo) {
+      res.status(404).json({
+        error: 'Termo não encontrado para este pet',
+        data: {
+          temTermo: false,
+          petId: petId,
+        },
+      });
+      return;
+    }
+
+    // Verificar permissão
+    const temPermissao = 
+      termo.doador_id === usuarioId || 
+      termo.adotante_id === usuarioId;
+
+    if (!temPermissao) {
+      res.status(403).json({
+        error: 'Você não tem permissão para deletar este termo',
+      });
+      return;
+    }
+
+    // Deletar termo
+    await TermoAdocao.destroy({
+      where: { id: termo.id },
+    });
+
+    console.log(`✅ Termo do pet ${petId} deletado com sucesso`);
+
+    res.json({
+      message: 'Termo deletado com sucesso',
+      data: {
+        termoId: termo.id,
+        petId: petId,
+        petNome: termo.pet_nome,
+        deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao deletar termo por pet:', error);
+
+    res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: error.message,
+    });
+  }
+}
 }
