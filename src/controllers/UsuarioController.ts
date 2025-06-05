@@ -4,6 +4,7 @@ import { ValidationError, UniqueConstraintError, DatabaseError } from 'sequelize
 import axios from 'axios';
 import { Estado } from '../models/estadoModel';
 import { Cidade } from '../models/cidadeModel';
+import { TermoDoacao } from '../models/termoDoacaoModel';
 import bcrypt from 'bcrypt';
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
 import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
@@ -639,6 +640,9 @@ export class UsuarioController {
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
+
+      console.log(`🗑️ Iniciando exclusão da conta do usuário ${id}...`);
+
       const usuario = await Usuario.findByPk(id);
 
       if (!usuario) {
@@ -646,41 +650,178 @@ export class UsuarioController {
         return;
       }
 
-      // Verificar se o usuário tem pets vinculados
+      console.log(`👤 Usuário encontrado: ${usuario.nome} (${usuario.email})`);
+
+      // 🐾 Verificar se o usuário tem pets vinculados
       const petCount = await Pet.count({
         where: {
           usuario_id: id,
         },
       });
 
+      console.log(`📊 Usuário possui ${petCount} pets cadastrados`);
+
       if (petCount > 0) {
+        console.log(`❌ Exclusão bloqueada: usuário possui ${petCount} pets`);
+
         res.status(400).json({
           title: 'Erro ao Excluir Conta',
           error: 'Não é possível excluir a conta',
           message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
             petCount > 1 ? 's' : ''
-          }. Remova antes de excluir sua conta.`,
+          }. Remova ${petCount > 1 ? 'todos os pets' : 'o pet'} antes de excluir sua conta.`,
           success: false,
+          petCount: petCount,
         });
         return;
       }
+
+      // 📋 Verificar se usuário tem termo de doação
+      let termoInfo = null;
+      try {
+        const termo = await TermoDoacao.findByDoador(id);
+
+        if (termo) {
+          termoInfo = {
+            id: termo.id,
+            motivoDoacao: termo.motivo_doacao,
+            dataAssinatura: termo.data_assinatura,
+          };
+
+          console.log(`📋 Termo de doação encontrado (ID: ${termo.id}), será excluído junto com a conta`);
+
+          // 🗑️ Excluir termo de doação ANTES do usuário
+          await TermoDoacao.destroy({
+            where: { id: termo.id },
+          });
+
+          console.log(`✅ Termo de doação ${termo.id} excluído com sucesso`);
+        } else {
+          console.log(`ℹ️ Usuário não possui termo de doação`);
+        }
+      } catch (termoError) {
+        console.error('❌ Erro ao processar termo de doação:', termoError);
+        // Não bloquear a exclusão da conta se houver erro com o termo
+        console.log('⚠️ Continuando com exclusão da conta mesmo com erro no termo');
+      }
+
+      // 🗑️ Excluir o usuário
+      await usuario.destroy();
+
+      console.log(`✅ Usuário ${usuario.nome} (ID: ${id}) excluído com sucesso`);
+
+      // 📧 Resposta de sucesso com informações detalhadas
+      res.status(200).json({
+        success: true,
+        message: 'Conta excluída com sucesso',
+        title: 'Conta Excluída',
+        data: {
+          usuarioId: id,
+          usuarioNome: usuario.nome,
+          usuarioEmail: usuario.email,
+          termoExcluido: !!termoInfo,
+          termoInfo: termoInfo,
+          dataExclusao: new Date().toISOString(),
+        },
+      });
     } catch (error) {
-      console.error('Erro ao deletar usuário:', error);
+      console.error('❌ Erro ao deletar usuário:', error);
 
       if (error instanceof DatabaseError) {
-        // Caso exista algum constraint que impede a exclusão (ex: registros relacionados)
+        // Caso exista algum constraint que impede a exclusão
+        console.log('❌ Erro de constraint no banco de dados');
+
         res.status(400).json({
+          title: 'Erro ao Excluir Conta',
           error: 'Não foi possível excluir',
-          message: 'Este usuário possui registros relacionados e não pode ser excluído.',
+          message:
+            'Este usuário possui registros relacionados e não pode ser excluído. Entre em contato com o suporte.',
           success: false,
         });
       } else {
         // Outros erros
+        console.log('❌ Erro interno do servidor');
+
         res.status(500).json({
+          title: 'Erro Interno',
           error: 'Erro ao deletar usuário.',
+          message: 'Ocorreu um erro interno. Tente novamente mais tarde.',
           success: false,
         });
       }
+    }
+  }
+
+  // 🆕 Adicione este novo método para verificar se pode excluir (útil para o frontend)
+  static async podeExcluirConta(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = Number(req.params.id);
+
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'ID de usuário inválido' });
+        return;
+      }
+
+      console.log(`🔍 Verificando se usuário ${id} pode excluir conta...`);
+
+      // Verificar se o usuário existe
+      const usuario = await Usuario.findByPk(id);
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado' });
+        return;
+      }
+
+      // Verificar pets
+      const petCount = await Pet.count({
+        where: { usuario_id: id },
+      });
+
+      // Verificar termo
+      let temTermo = false;
+      let termoInfo = null;
+      try {
+        const termo = await TermoDoacao.findByDoador(id);
+        if (termo) {
+          temTermo = true;
+          termoInfo = {
+            id: termo.id,
+            dataAssinatura: termo.data_assinatura,
+            motivoDoacao: termo.motivo_doacao,
+          };
+        }
+      } catch (error) {
+        console.log('Usuário não possui termo de doação');
+      }
+
+      const podeExcluir = petCount === 0;
+
+      console.log(`📊 Resultado da verificação:`, {
+        podeExcluir,
+        petCount,
+        temTermo,
+      });
+
+      res.json({
+        message: 'Verificação concluída',
+        data: {
+          podeExcluir,
+          motivoImpedimento: podeExcluir ? null : 'pets_cadastrados',
+          petCount,
+          temTermo,
+          termoInfo,
+          usuario: {
+            id: usuario.id,
+            nome: usuario.nome,
+            email: usuario.email,
+          },
+        },
+      });
+    } catch (error: any) {
+      console.error('❌ Erro ao verificar se pode excluir conta:', error);
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error.message,
+      });
     }
   }
 

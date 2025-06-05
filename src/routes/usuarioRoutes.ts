@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { UsuarioController } from '../controllers/UsuarioController';
+import { authMiddleware } from '../middlewares/authMiddleware';
 import { upload } from '../uploads/uploads';
 const router = Router();
 
@@ -19,4 +20,9 @@ router.post('/validar-edicao', UsuarioController.checkDuplicateFieldsForEdit);
 router.get('/email/:email', UsuarioController.getByEmail); // <-- Corrigido e adicionado
 router.post('/recuperar-senha/sendRecoveryCode', UsuarioController.sendRecoveryCode);
 router.post('/recuperar-senha/checkCode', UsuarioController.checkCode);
+// 🆕 Verificar se pode excluir conta
+router.get('/:id/pode-excluir-conta', authMiddleware, UsuarioController.podeExcluirConta);
+
+// ✅ Rota existente atualizada - agora exclui termo automaticamente
+router.delete('/:id', authMiddleware, UsuarioController.delete);
 export default router;
