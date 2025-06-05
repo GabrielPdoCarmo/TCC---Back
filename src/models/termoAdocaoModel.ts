@@ -1,4 +1,4 @@
-// models/termosCompromissoModel.ts - Atualizado com método de atualização de nome
+// models/termosCompromissoModel.ts - Atualizado com localização completa do doador e adotante
 
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Pet } from './petModel';
@@ -11,10 +11,10 @@ import { Cidade } from './cidadeModel';
 import { Estado } from './estadoModel';
 
 @Table({
-  tableName: 'TermosCompromisso',
+  tableName: 'TermosAdocao',
   timestamps: true, // createdAt e updatedAt
 })
-export class TermoCompromisso extends Model {
+export class TermoAdocao extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   id!: number;
 
@@ -100,7 +100,7 @@ export class TermoCompromisso extends Model {
   })
   pet_motivo_doacao?: string;
 
-  // === SNAPSHOT DOS DADOS DO DOADOR ===
+  // === SNAPSHOT DOS DADOS DO DOADOR COM LOCALIZAÇÃO ===
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
@@ -122,7 +122,38 @@ export class TermoCompromisso extends Model {
   })
   doador_telefone?: string;
 
-  // === SNAPSHOT DOS DADOS DO ADOTANTE ===
+  // 🆕 LOCALIZAÇÃO DO DOADOR
+  @ForeignKey(() => Estado)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    comment: 'Estado do doador',
+  })
+  doador_estado_id?: number;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'Nome do estado do doador',
+  })
+  doador_estado_nome?: string;
+
+  @ForeignKey(() => Cidade)
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    comment: 'Cidade do doador',
+  })
+  doador_cidade_id?: number;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'Nome da cidade do doador',
+  })
+  doador_cidade_nome?: string;
+
+  // === SNAPSHOT DOS DADOS DO ADOTANTE COM LOCALIZAÇÃO ===
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
@@ -159,6 +190,13 @@ export class TermoCompromisso extends Model {
   })
   adotante_estado_id?: number;
 
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'Nome do estado do adotante',
+  })
+  adotante_estado_nome?: string;
+
   @ForeignKey(() => Cidade)
   @Column({
     type: DataType.INTEGER,
@@ -166,6 +204,13 @@ export class TermoCompromisso extends Model {
     comment: 'Cidade do adotante',
   })
   adotante_cidade_id?: number;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'Nome da cidade do adotante',
+  })
+  adotante_cidade_nome?: string;
 
   // === DADOS DA ASSINATURA ===
   @Column({
@@ -206,6 +251,14 @@ export class TermoCompromisso extends Model {
   @BelongsTo(() => Usuario, { foreignKey: 'adotante_id' })
   adotante!: Usuario;
 
+  // Relacionamentos para localização do doador
+  @BelongsTo(() => Estado, { foreignKey: 'doador_estado_id' })
+  estadoDoador?: Estado;
+
+  @BelongsTo(() => Cidade, { foreignKey: 'doador_cidade_id' })
+  cidadeDoador?: Cidade;
+
+  // Relacionamentos para localização do adotante  
   @BelongsTo(() => Estado, { foreignKey: 'adotante_estado_id' })
   estadoAdotante?: Estado;
 
@@ -223,7 +276,7 @@ export class TermoCompromisso extends Model {
 
   // === HOOKS ===
   @BeforeSave
-  static async atualizarHash(instance: TermoCompromisso) {
+  static async atualizarHash(instance: TermoAdocao) {
     // Atualiza o hash sempre que o termo for salvo
     instance.hash_documento = instance.gerarHashDocumento();
   }
@@ -247,18 +300,44 @@ export class TermoCompromisso extends Model {
     return hashAtual === this.hash_documento;
   }
 
+  /**
+   * 🆕 Obter localização formatada do doador
+   */
+  public getLocalizacaoDoador(): string {
+    if (this.doador_cidade_nome && this.doador_estado_nome) {
+      return `${this.doador_cidade_nome} - ${this.doador_estado_nome}`;
+    }
+    if (this.doador_estado_nome) {
+      return this.doador_estado_nome;
+    }
+    return 'Não informado';
+  }
+
+  /**
+   * 🆕 Obter localização formatada do adotante
+   */
+  public getLocalizacaoAdotante(): string {
+    if (this.adotante_cidade_nome && this.adotante_estado_nome) {
+      return `${this.adotante_cidade_nome} - ${this.adotante_estado_nome}`;
+    }
+    if (this.adotante_estado_nome) {
+      return this.adotante_estado_nome;
+    }
+    return 'Não informado';
+  }
+
   // === MÉTODOS ESTÁTICOS ===
 
   /**
-   * Criar termo copiando dados automaticamente
+   * 🆕 Criar termo copiando dados automaticamente COM LOCALIZAÇÃO COMPLETA
    */
   static async criarComDados(data: {
     pet_id: number;
     adotante_id: number;
     assinatura_digital: string;
     observacoes?: string;
-    isNameUpdate?: boolean; // 🆕 Flag para indicar se é atualização de nome
-  }): Promise<TermoCompromisso> {
+    isNameUpdate?: boolean;
+  }): Promise<TermoAdocao> {
     // Buscar dados completos do pet com relacionamentos
     const pet = await Pet.findByPk(data.pet_id, {
       include: [
@@ -277,13 +356,27 @@ export class TermoCompromisso extends Model {
       throw new Error('Pet não tem responsável definido');
     }
 
-    // Buscar dados do adotante
-    const adotante = await Usuario.findByPk(data.adotante_id);
-    if (!adotante) {
+    // 🆕 Buscar dados completos do doador COM localização
+    const doadorCompleto = await Usuario.findByPk(pet.usuario_id, {
+      include: [
+        { model: Cidade, as: 'cidade' },
+        { model: Estado, as: 'estado' },
+      ],
+    });
+
+    // Buscar dados completos do adotante COM localização
+    const adotanteCompleto = await Usuario.findByPk(data.adotante_id, {
+      include: [
+        { model: Cidade, as: 'cidade' },
+        { model: Estado, as: 'estado' },
+      ],
+    });
+
+    if (!adotanteCompleto) {
       throw new Error('Usuário adotante não encontrado');
     }
 
-    // 🆕 Se não é atualização de nome, verificar se já existe termo
+    // Se não é atualização de nome, verificar se já existe termo
     if (!data.isNameUpdate) {
       const termoExistente = await this.findOne({
         where: { pet_id: data.pet_id },
@@ -294,10 +387,10 @@ export class TermoCompromisso extends Model {
       }
     }
 
-    // Criar termo com snapshot dos dados
+    // Criar termo com snapshot completo dos dados incluindo localização
     const termo = await this.create({
       pet_id: data.pet_id,
-      doador_id: pet.usuario_id, // ID do dono do pet
+      doador_id: pet.usuario_id,
       adotante_id: data.adotante_id,
 
       // Snapshot do pet
@@ -311,18 +404,24 @@ export class TermoCompromisso extends Model {
       pet_sexo_nome: pet.sexo.descricao,
       pet_motivo_doacao: pet.motivoDoacao,
 
-      // Snapshot do doador
-      doador_nome: pet.responsavel.nome,
-      doador_email: pet.responsavel.email,
-      doador_telefone: pet.responsavel.telefone,
+      // 🆕 Snapshot do doador COM localização
+      doador_nome: doadorCompleto?.nome || pet.responsavel.nome,
+      doador_email: doadorCompleto?.email || pet.responsavel.email,
+      doador_telefone: doadorCompleto?.telefone || pet.responsavel.telefone,
+      doador_estado_id: doadorCompleto?.estado_id,
+      doador_estado_nome: doadorCompleto?.estado?.nome,
+      doador_cidade_id: doadorCompleto?.cidade_id,
+      doador_cidade_nome: doadorCompleto?.cidade?.nome,
 
-      // Snapshot do adotante
-      adotante_nome: adotante.nome,
-      adotante_email: adotante.email,
-      adotante_telefone: adotante.telefone,
-      adotante_cpf: adotante.cpf,
-      adotante_cidade_id: adotante.cidade_id,
-      adotante_estado_id: adotante.estado_id,
+      // 🆕 Snapshot do adotante COM localização
+      adotante_nome: adotanteCompleto.nome,
+      adotante_email: adotanteCompleto.email,
+      adotante_telefone: adotanteCompleto.telefone,
+      adotante_cpf: adotanteCompleto.cpf,
+      adotante_cidade_id: adotanteCompleto.cidade_id,
+      adotante_cidade_nome: adotanteCompleto.cidade?.nome,
+      adotante_estado_id: adotanteCompleto.estado_id,
+      adotante_estado_nome: adotanteCompleto.estado?.nome,
 
       // Dados da assinatura
       assinatura_digital: data.assinatura_digital,
@@ -334,9 +433,7 @@ export class TermoCompromisso extends Model {
   }
 
   /**
-   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS DO ADOTANTE
-   * @param termoId - ID do termo a ser atualizado
-   * @param data - Novos dados para atualização
+   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS COMPLETOS
    */
   static async atualizarComNovoNome(termoId: number, data: {
     adotante_id: number;
@@ -348,7 +445,7 @@ export class TermoCompromisso extends Model {
     adotante_estado_id?: number;
     assinatura_digital: string;
     observacoes?: string;
-  }): Promise<TermoCompromisso> {
+  }): Promise<TermoAdocao> {
     console.log('🔄 Atualizando termo de compromisso existente:', { termoId, novoNome: data.adotante_nome });
 
     // Buscar termo existente
@@ -362,15 +459,29 @@ export class TermoCompromisso extends Model {
       throw new Error('Termo não pertence ao usuário informado');
     }
 
-    // Atualizar termo com novos dados do adotante
+    // 🆕 Buscar dados completos do adotante COM localização atualizada
+    const adotanteCompleto = await Usuario.findByPk(data.adotante_id, {
+      include: [
+        { model: Cidade, as: 'cidade' },
+        { model: Estado, as: 'estado' },
+      ],
+    });
+
+    if (!adotanteCompleto) {
+      throw new Error('Dados do adotante não encontrados');
+    }
+
+    // Atualizar termo com novos dados completos do adotante
     const termoAtualizado = await termo.update({
-      // Atualizar snapshot do adotante com dados atuais
-      adotante_nome: data.adotante_nome,
-      adotante_email: data.adotante_email,
-      adotante_telefone: data.adotante_telefone || null,
-      adotante_cpf: data.adotante_cpf || null,
-      adotante_cidade_id: data.adotante_cidade_id || null,
-      adotante_estado_id: data.adotante_estado_id || null,
+      // 🆕 Atualizar snapshot do adotante com dados atuais E localização
+      adotante_nome: adotanteCompleto.nome || data.adotante_nome,
+      adotante_email: adotanteCompleto.email || data.adotante_email,
+      adotante_telefone: adotanteCompleto.telefone || data.adotante_telefone || null,
+      adotante_cpf: adotanteCompleto.cpf || data.adotante_cpf || null,
+      adotante_cidade_id: adotanteCompleto.cidade_id || data.adotante_cidade_id || null,
+      adotante_cidade_nome: adotanteCompleto.cidade?.nome || null,
+      adotante_estado_id: adotanteCompleto.estado_id || data.adotante_estado_id || null,
+      adotante_estado_nome: adotanteCompleto.estado?.nome || null,
 
       // Atualizar assinatura e observações
       assinatura_digital: data.assinatura_digital,
@@ -383,6 +494,7 @@ export class TermoCompromisso extends Model {
     console.log('✅ Termo de compromisso atualizado com sucesso:', { 
       termoId: termoAtualizado.id, 
       novoNome: termoAtualizado.adotante_nome,
+      localizacaoAdotante: termoAtualizado.getLocalizacaoAdotante(),
       novaDataAssinatura: termoAtualizado.data_assinatura
     });
 
@@ -390,17 +502,22 @@ export class TermoCompromisso extends Model {
   }
 
   /**
-   * Buscar termo por pet
+   * 🆕 Buscar termo por pet COM todos os relacionamentos de localização
    */
-  static async findByPet(petId: number): Promise<TermoCompromisso | null> {
+  static async findByPet(petId: number): Promise<TermoAdocao | null> {
     return await this.findOne({
       where: { pet_id: petId },
       include: [
         { model: Pet, as: 'pet' },
         { model: Usuario, as: 'doador' },
         { model: Usuario, as: 'adotante' },
+        // Relacionamentos de localização do doador
+        { model: Estado, as: 'estadoDoador' },
+        { model: Cidade, as: 'cidadeDoador' },
+        // Relacionamentos de localização do adotante
         { model: Estado, as: 'estadoAdotante' },
         { model: Cidade, as: 'cidadeAdotante' },
+        // Relacionamentos do pet
         { model: Especie, as: 'especiePet' },
         { model: Raca, as: 'racaPet' },
         { model: Sexo, as: 'sexoPet' },
@@ -409,22 +526,17 @@ export class TermoCompromisso extends Model {
   }
 
   /**
-   * 🆕 VERIFICAR SE NOME DO ADOTANTE MUDOU E PRECISA ATUALIZAR TERMO
-   * @param petId - ID do pet
-   * @param usuarioId - ID do usuário (adotante)
-   * @param nomeAtualUsuario - Nome atual do usuário
-   * @returns boolean - Se precisa atualizar termo por mudança de nome
+   * Verificar se nome do adotante mudou e precisa atualizar termo
    */
   static async precisaAtualizarPorNome(petId: number, usuarioId: number, nomeAtualUsuario: string): Promise<{
     precisaAtualizar: boolean;
-    termo?: TermoCompromisso;
+    termo?: TermoAdocao;
     nomeNoTermo?: string;
   }> {
     try {
       const termo = await this.findByPet(petId);
       
       if (!termo || termo.adotante_id !== usuarioId) {
-        // Não tem termo ou não é do usuário, não precisa atualizar
         return { precisaAtualizar: false };
       }
 
@@ -455,12 +567,14 @@ export class TermoCompromisso extends Model {
   /**
    * Buscar todos os termos de um usuário (como doador)
    */
-  static async findByDoador(doadorId: number): Promise<TermoCompromisso[]> {
+  static async findByDoador(doadorId: number): Promise<TermoAdocao[]> {
     return await this.findAll({
       where: { doador_id: doadorId },
       include: [
         { model: Pet, as: 'pet' },
         { model: Usuario, as: 'adotante' },
+        { model: Estado, as: 'estadoAdotante' },
+        { model: Cidade, as: 'cidadeAdotante' },
       ],
       order: [['data_assinatura', 'DESC']],
     });
@@ -469,24 +583,23 @@ export class TermoCompromisso extends Model {
   /**
    * Buscar todos os termos de um usuário (como adotante)
    */
-  static async findByAdotante(adotanteId: number): Promise<TermoCompromisso[]> {
+  static async findByAdotante(adotanteId: number): Promise<TermoAdocao[]> {
     return await this.findAll({
       where: { adotante_id: adotanteId },
       include: [
         { model: Pet, as: 'pet' },
         { model: Usuario, as: 'doador' },
+        { model: Estado, as: 'estadoDoador' },
+        { model: Cidade, as: 'cidadeDoador' },
       ],
       order: [['data_assinatura', 'DESC']],
     });
   }
 
   /**
-   * 🆕 VERIFICAR SE USUÁRIO TEM TERMO PARA UM PET ESPECÍFICO
-   * @param petId - ID do pet
-   * @param usuarioId - ID do usuário
-   * @returns TermoCompromisso | null
+   * Verificar se usuário tem termo para um pet específico
    */
-  static async findByPetAndAdotante(petId: number, usuarioId: number): Promise<TermoCompromisso | null> {
+  static async findByPetAndAdotante(petId: number, usuarioId: number): Promise<TermoAdocao | null> {
     return await this.findOne({
       where: { 
         pet_id: petId,
@@ -496,6 +609,10 @@ export class TermoCompromisso extends Model {
         { model: Pet, as: 'pet' },
         { model: Usuario, as: 'doador' },
         { model: Usuario, as: 'adotante' },
+        { model: Estado, as: 'estadoDoador' },
+        { model: Cidade, as: 'cidadeDoador' },
+        { model: Estado, as: 'estadoAdotante' },
+        { model: Cidade, as: 'cidadeAdotante' },
       ],
     });
   }

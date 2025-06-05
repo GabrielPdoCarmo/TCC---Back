@@ -19,7 +19,7 @@ import authRoutes from './routes/authRoutes';
 import sexoUsuarioRoutes from './routes/sexoUsuarioRoutes';
 import petDoencaDeficienciaRoutes from './routes/petDoencaDeficienciaRoutes';
 import sexoRoutes from './routes/sexoPetRouter';
-import termoCopromissoRoutes from './routes/termosCompromissoRouter';
+import termoCopromissoRoutes from './routes/termoAdocaoRouter';
 import cidades_estadosRoutes from './routes/cidade_estado_json';
 import { DoencasDeficiencias } from './models/doencasDeficienciasModel';
 import { Pet } from './models/petModel';
@@ -37,7 +37,7 @@ import { Sexo } from './models/sexoPetModel';
 import { Sexo_Usuario } from './models/sexoUsuarioModel';
 import { MyPets } from './models/mypetsModel';
 import { RecuperacaoSenha } from './models/RecuperacaoSenhaModel';
-import { TermoCompromisso } from './models/termosCompromissoModel';
+import { TermoAdocao } from './models/termoAdocaoModel';
 import { TermoDoacao } from './models/termoDoacaoModel';
 // import cors from 'cors';
 dotenv.config();
@@ -70,7 +70,7 @@ const sequelize = new Sequelize({
     Sexo_Usuario,
     MyPets,
     RecuperacaoSenha,
-    TermoCompromisso,
+    TermoAdocao,
     TermoDoacao,
   ],
 });

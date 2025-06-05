@@ -1,4 +1,4 @@
-// models/termoDoacaoModel.ts - Modelo atualizado com método de atualização de nome
+// models/termoDoacaoModel.ts - Modelo atualizado com método de atualização de dados completos
 
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Usuario } from './usuarioModel';
@@ -190,7 +190,7 @@ export class TermoDoacao extends Model {
    */
   public gerarHashDocumento(): string {
     const crypto = require('crypto');
-    const dados = `${this.doador_nome}${this.doador_email}${this.assinatura_digital}${this.data_assinatura}${this.motivo_doacao}`;
+    const dados = `${this.doador_nome}${this.doador_email}${this.doador_telefone}${this.doador_cidade_id}${this.doador_estado_id}${this.assinatura_digital}${this.data_assinatura}${this.motivo_doacao}`;
     return crypto.createHash('md5').update(dados).digest('hex');
   }
 
@@ -312,11 +312,11 @@ export class TermoDoacao extends Model {
   }
 
   /**
-   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS
+   * 🆕 ATUALIZAR TERMO EXISTENTE COM DADOS ATUALIZADOS (NOME, EMAIL, TELEFONE)
    * @param termoId - ID do termo a ser atualizado
    * @param data - Novos dados para atualização
    */
-  static async atualizarComNovoNome(termoId: number, data: {
+  static async atualizarComDadosAtualizados(termoId: number, data: {
     doador_id: number;
     doador_nome: string;
     doador_email: string;
@@ -335,7 +335,14 @@ export class TermoDoacao extends Model {
     autoriza_verificacao: boolean;
     compromete_contato: boolean;
   }): Promise<TermoDoacao> {
-    console.log('🔄 Atualizando termo existente:', { termoId, novoNome: data.doador_nome });
+    console.log('🔄 Atualizando termo existente com dados atualizados:', { 
+      termoId, 
+      novoNome: data.doador_nome,
+      novoEmail: data.doador_email,
+      novoTelefone: data.doador_telefone,
+      novaCidade: data.doador_cidade_id,
+      novoEstado: data.doador_estado_id
+    });
 
     // Buscar termo existente
     const termo = await this.findByPk(termoId);
@@ -359,6 +366,16 @@ export class TermoDoacao extends Model {
     ) {
       throw new Error('Todos os compromissos devem ser aceitos para atualizar o termo');
     }
+
+    // Log dos dados anteriores
+    console.log('📋 Dados anteriores do termo:', {
+      nome: termo.doador_nome,
+      email: termo.doador_email,
+      telefone: termo.doador_telefone,
+      cidade_id: termo.doador_cidade_id,
+      estado_id: termo.doador_estado_id,
+      dataAssinatura: termo.data_assinatura
+    });
 
     // Atualizar termo com novos dados
     const termoAtualizado = await termo.update({
@@ -396,6 +413,10 @@ export class TermoDoacao extends Model {
     console.log('✅ Termo atualizado com sucesso:', { 
       termoId: termoAtualizado.id, 
       novoNome: termoAtualizado.doador_nome,
+      novoEmail: termoAtualizado.doador_email,
+      novoTelefone: termoAtualizado.doador_telefone,
+      novaCidade: termoAtualizado.doador_cidade_id,
+      novoEstado: termoAtualizado.doador_estado_id,
       novaDataAssinatura: termoAtualizado.data_assinatura
     });
 
@@ -427,15 +448,34 @@ export class TermoDoacao extends Model {
   }
 
   /**
-   * 🆕 VERIFICAR SE NOME DO USUÁRIO MUDOU E PRECISA ATUALIZAR TERMO
+   * 🆕 VERIFICAR SE DADOS DO USUÁRIO MUDARAM E PRECISA ATUALIZAR TERMO
    * @param usuarioId - ID do usuário
-   * @param nomeAtualUsuario - Nome atual do usuário
-   * @returns boolean - Se precisa atualizar termo por mudança de nome
+   * @param dadosAtuaisUsuario - Dados atuais do usuário (nome, email, telefone, cidade, estado)
+   * @returns Promise com status sobre atualização de dados
    */
-  static async precisaAtualizarPorNome(usuarioId: number, nomeAtualUsuario: string): Promise<{
+  static async precisaAtualizarPorDados(usuarioId: number, dadosAtuaisUsuario: {
+    nome: string;
+    email: string;
+    telefone?: string;
+    cidade_id?: number | null;
+    estado_id?: number | null;
+  }): Promise<{
     precisaAtualizar: boolean;
     termo?: TermoDoacao;
-    nomeNoTermo?: string;
+    dadosNoTermo?: {
+      nome: string;
+      email: string;
+      telefone?: string;
+      cidade_id?: number | null;
+      estado_id?: number | null;
+    };
+    diferencias?: {
+      nome: boolean;
+      email: boolean;
+      telefone: boolean;
+      cidade: boolean;
+      estado: boolean;
+    };
   }> {
     try {
       const termo = await this.findByDoador(usuarioId);
@@ -445,25 +485,50 @@ export class TermoDoacao extends Model {
         return { precisaAtualizar: false };
       }
 
-      const nomeNoTermo = termo.doador_nome || '';
-      const nomesIguais = nomeAtualUsuario.trim() === nomeNoTermo.trim();
+      const dadosNoTermo = {
+        nome: termo.doador_nome || '',
+        email: termo.doador_email || '',
+        telefone: termo.doador_telefone || '',
+        cidade_id: termo.doador_cidade_id || null,
+        estado_id: termo.doador_estado_id || null,
+      };
 
-      console.log('🔍 Verificando necessidade de atualização por nome:', {
+      const dadosAtuais = {
+        nome: dadosAtuaisUsuario.nome || '',
+        email: dadosAtuaisUsuario.email || '',
+        telefone: dadosAtuaisUsuario.telefone || '',
+        cidade_id: dadosAtuaisUsuario.cidade_id || null,
+        estado_id: dadosAtuaisUsuario.estado_id || null,
+      };
+
+      // Verificar diferenças em cada campo (incluindo localização)
+      const diferencias = {
+        nome: dadosAtuais.nome.trim() !== dadosNoTermo.nome.trim(),
+        email: dadosAtuais.email.trim() !== dadosNoTermo.email.trim(),
+        telefone: dadosAtuais.telefone.trim() !== dadosNoTermo.telefone.trim(),
+        cidade: dadosAtuais.cidade_id !== dadosNoTermo.cidade_id,
+        estado: dadosAtuais.estado_id !== dadosNoTermo.estado_id,
+      };
+
+      const precisaAtualizar = diferencias.nome || diferencias.email || diferencias.telefone || diferencias.cidade || diferencias.estado;
+
+      console.log('🔍 Verificando necessidade de atualização por dados alterados (incluindo localização):', {
         usuarioId,
-        nomeAtual: nomeAtualUsuario,
-        nomeNoTermo,
-        nomesIguais,
-        precisaAtualizar: !nomesIguais
+        dadosAtuais,
+        dadosNoTermo,
+        diferencias,
+        precisaAtualizar
       });
 
       return {
-        precisaAtualizar: !nomesIguais,
+        precisaAtualizar,
         termo,
-        nomeNoTermo,
+        dadosNoTermo,
+        diferencias,
       };
 
     } catch (error) {
-      console.error('❌ Erro ao verificar necessidade de atualização:', error);
+      console.error('❌ Erro ao verificar necessidade de atualização de dados:', error);
       return { precisaAtualizar: false };
     }
   }

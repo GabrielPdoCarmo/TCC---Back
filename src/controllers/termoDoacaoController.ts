@@ -1,4 +1,4 @@
-// controllers/termoDoacaoController.ts - Controller atualizado com verificação de nome
+// controllers/termoDoacaoController.ts - Controller atualizado com verificação completa de dados
 
 import { Request, Response } from 'express';
 import { TermoDoacao } from '../models/termoDoacaoModel';
@@ -27,8 +27,8 @@ interface CreateTermoDoacaoBody {
   confirmaSaude: boolean;
   autorizaVerificacao: boolean;
   compromesteContato: boolean;
-  // 🆕 Flag para indicar se é atualização de nome
-  isNameUpdate?: boolean;
+  // 🆕 Flag para indicar se é atualização de dados
+  isDataUpdate?: boolean;
 }
 
 export class TermoDoacaoController {
@@ -85,7 +85,7 @@ export class TermoDoacaoController {
   }
 
   /**
-   * 📝 Criar novo termo de doação OU atualizar termo existente com novo nome
+   * 📝 Criar novo termo de doação OU atualizar termo existente com dados atualizados
    * POST /api/termos-doacao
    */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -110,7 +110,7 @@ export class TermoDoacaoController {
         confirmaSaude,
         autorizaVerificacao,
         compromesteContato,
-        isNameUpdate = false, // 🆕 Flag para indicar atualização de nome
+        isDataUpdate = false, // 🆕 Flag para indicar atualização de dados
       }: CreateTermoDoacaoBody = req.body;
 
       // Validações básicas
@@ -163,14 +163,14 @@ export class TermoDoacaoController {
         return;
       }
 
-      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
+      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE DADOS
       const termoExistente = await TermoDoacao.findByDoador(doadorId);
 
-      if (termoExistente && isNameUpdate) {
-        console.log('🔄 Atualizando termo existente com novo nome do usuário...');
+      if (termoExistente && isDataUpdate) {
+        console.log('🔄 Atualizando termo existente com dados atualizados do usuário...');
         
         // Atualizar termo existente com novos dados
-        const termoAtualizado = await TermoDoacao.atualizarComNovoNome(termoExistente.id, {
+        const termoAtualizado = await TermoDoacao.atualizarComDadosAtualizados(termoExistente.id, {
           doador_id: doadorId,
           doador_nome: dadosUsuario.nome || assinaturaDigital,
           doador_email: dadosUsuario.email,
@@ -199,7 +199,7 @@ export class TermoDoacaoController {
           .catch((error) => console.error('Erro ao enviar email com termo atualizado:', error));
 
         res.status(200).json({
-          message: 'Termo de doação atualizado com sucesso (novo nome)',
+          message: 'Termo de doação atualizado com sucesso (dados atualizados)',
           data: termoCompleto,
           updated: true,
         });
@@ -207,7 +207,7 @@ export class TermoDoacaoController {
       }
 
       // 🔄 LÓGICA ORIGINAL - CRIAR NOVO TERMO
-      if (termoExistente && !isNameUpdate) {
+      if (termoExistente && !isDataUpdate) {
         res.status(409).json({
           error: 'Você já possui um termo de doação',
           data: termoExistente,
@@ -380,7 +380,7 @@ export class TermoDoacaoController {
   }
 
   /**
-   * ✅ Verificar se usuário pode cadastrar pets (COM VERIFICAÇÃO DE NOME ATUALIZADO)
+   * ✅ Verificar se usuário pode cadastrar pets (COM VERIFICAÇÃO DE DADOS ATUALIZADOS)
    * GET /api/termos-doacao/pode-cadastrar-pets
    */
   static async podeCadastrarPets(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -407,7 +407,7 @@ export class TermoDoacaoController {
             data: {
               podecastrar: false,
               temTermo: false,
-              nomeDesatualizado: false,
+              dadosDesatualizados: false,
             },
           });
           return;
@@ -419,7 +419,7 @@ export class TermoDoacaoController {
           data: {
             podecastrar: false,
             temTermo: false,
-            nomeDesatualizado: false,
+            dadosDesatualizados: false,
           },
         });
         return;
@@ -428,7 +428,7 @@ export class TermoDoacaoController {
       // Verificar se usuário pode cadastrar pets
       let podecastrar = false;
       let temTermo = false;
-      let nomeDesatualizado = false; // 🆕 Flag para indicar se nome mudou
+      let dadosDesatualizados = false; // 🆕 Flag para indicar se dados principais mudaram
 
       try {
         const termo = await TermoDoacao.findByDoador(usuarioId);
@@ -436,25 +436,51 @@ export class TermoDoacaoController {
         if (termo) {
           temTermo = true;
           
-          // 🆕 VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
-          const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
-          const nomeNoTermo = termo.doador_nome || '';
+          // 🆕 VERIFICAR SE DADOS PRINCIPAIS NO TERMO SÃO DIFERENTES DOS DADOS ATUAIS
+          const dadosAtualUsuario = {
+            nome: dadosUsuarioAtual.nome || '',
+            email: dadosUsuarioAtual.email || '',
+            telefone: dadosUsuarioAtual.telefone || '',
+            cidade_id: dadosUsuarioAtual.cidade_id || null,
+            estado_id: dadosUsuarioAtual.estado_id || null,
+          };
           
-          console.log(`📋 Comparando nomes:`, {
-            nomeAtual: nomeAtualUsuario,
-            nomeNoTermo: nomeNoTermo,
-            iguais: nomeAtualUsuario === nomeNoTermo
+          const dadosNoTermo = {
+            nome: termo.doador_nome || '',
+            email: termo.doador_email || '',
+            telefone: termo.doador_telefone || '',
+            cidade_id: termo.doador_cidade_id || null,
+            estado_id: termo.doador_estado_id || null,
+          };
+          
+          console.log(`📋 Comparando dados principais (incluindo localização):`, {
+            dadosAtuais: dadosAtualUsuario,
+            dadosNoTermo: dadosNoTermo,
           });
 
-          if (nomeAtualUsuario !== nomeNoTermo) {
-            // Nome foi alterado - precisa reAssinar termo
-            nomeDesatualizado = true;
+          // Verificar se algum dos dados principais mudou (incluindo localização)
+          const nomeIgual = dadosAtualUsuario.nome === dadosNoTermo.nome;
+          const emailIgual = dadosAtualUsuario.email === dadosNoTermo.email;
+          const telefoneIgual = dadosAtualUsuario.telefone === dadosNoTermo.telefone;
+          const cidadeIgual = dadosAtualUsuario.cidade_id === dadosNoTermo.cidade_id;
+          const estadoIgual = dadosAtualUsuario.estado_id === dadosNoTermo.estado_id;
+
+          if (!nomeIgual || !emailIgual || !telefoneIgual || !cidadeIgual || !estadoIgual) {
+            // Dados foram alterados - precisa reAssinar termo
+            dadosDesatualizados = true;
             podecastrar = false;
-            console.log(`⚠️ Nome desatualizado! Usuário ${usuarioId} precisa reAssinar termo`);
+            
+            console.log(`⚠️ Dados desatualizados! Usuário ${usuarioId} precisa reAssinar termo:`, {
+              nomeIgual,
+              emailIgual,
+              telefoneIgual,
+              cidadeIgual,
+              estadoIgual,
+            });
           } else {
-            // Nome está igual - pode cadastrar normalmente
+            // Dados estão iguais - pode cadastrar normalmente
             podecastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
-            console.log(`✅ Nome atualizado! Usuário ${usuarioId} pode cadastrar: ${podecastrar}`);
+            console.log(`✅ Dados atualizados! Usuário ${usuarioId} pode cadastrar: ${podecastrar}`);
           }
         } else {
           // Não tem termo
@@ -468,7 +494,7 @@ export class TermoDoacaoController {
         // Em caso de erro, assumir que não pode cadastrar por segurança
         podecastrar = false;
         temTermo = false;
-        nomeDesatualizado = false;
+        dadosDesatualizados = false;
       }
 
       // SEMPRE retornar status 200 para não quebrar o frontend
@@ -477,7 +503,7 @@ export class TermoDoacaoController {
         data: {
           podecastrar,
           temTermo,
-          nomeDesatualizado, // 🆕 Indica se precisa reAssinar por nome diferente
+          dadosDesatualizados, // 🆕 Indica se precisa reAssinar por dados diferentes
         },
       });
     } catch (error: any) {
@@ -489,7 +515,7 @@ export class TermoDoacaoController {
         data: {
           podecastrar: false,
           temTermo: false,
-          nomeDesatualizado: false,
+          dadosDesatualizados: false,
         },
       });
     }

@@ -1,11 +1,13 @@
-// controllers/termosCompromissoController.ts - Atualizado com verificação de nome
+// controllers/termosCompromissoController.ts - Atualizado com localização completa e email para ambos
 
 import { Request, Response } from 'express';
-import { TermoCompromisso } from '../models/termosCompromissoModel';
+import { TermoAdocao } from '../models/termoAdocaoModel';
 import { Pet } from '../models/petModel';
 import { Usuario } from '../models/usuarioModel';
+import { Cidade } from '../models/cidadeModel';
+import { Estado } from '../models/estadoModel';
 import PDFDocument from 'pdfkit';
-import { emailService } from '../services/emailService';
+import { emailService } from '../services/emailTermoAdocaoService';
 
 // === INTERFACES ===
 interface AuthenticatedRequest extends Request {
@@ -20,11 +22,11 @@ interface CreateTermoBody {
   petId: number;
   assinaturaDigital: string;
   observacoes?: string;
-  // 🆕 Flag para indicar se é atualização de nome
+  // Flag para indicar se é atualização de nome
   isNameUpdate?: boolean;
 }
 
-export class TermosCompromissoController {
+export class TermoAdocaoController {
   /**
    * 📋 Listar todos os termos
    * GET /api/termos-compromisso
@@ -45,12 +47,17 @@ export class TermosCompromissoController {
         ];
       }
 
-      const { count, rows: termos } = await TermoCompromisso.findAndCountAll({
+      const { count, rows: termos } = await TermoAdocao.findAndCountAll({
         where: whereClause,
         include: [
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
+          // 🆕 Incluir relacionamentos de localização
+          { model: Estado, as: 'estadoDoador' },
+          { model: Cidade, as: 'cidadeDoador' },
+          { model: Estado, as: 'estadoAdotante' },
+          { model: Cidade, as: 'cidadeAdotante' },
         ],
         order: [['data_assinatura', 'DESC']],
         limit: parseInt(limit as string),
@@ -77,7 +84,7 @@ export class TermosCompromissoController {
   }
 
   /**
-   * 📝 Criar novo termo de compromisso OU atualizar termo existente com novo nome
+   * 🆕 📝 Criar novo termo de compromisso OU atualizar termo existente com novo nome
    * POST /api/termos-compromisso
    */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -91,11 +98,11 @@ export class TermosCompromissoController {
         return;
       }
 
-      const { 
-        petId, 
-        assinaturaDigital, 
+      const {
+        petId,
+        assinaturaDigital,
         observacoes,
-        isNameUpdate = false // 🆕 Flag para indicar atualização de nome
+        isNameUpdate = false,
       }: CreateTermoBody = req.body;
 
       // Validações básicas
@@ -107,8 +114,20 @@ export class TermosCompromissoController {
         return;
       }
 
-      // Verificar se o pet existe e se não é do próprio usuário
-      const pet = await Pet.findByPk(petId);
+      // 🆕 Verificar se o pet existe e se não é do próprio usuário
+      const pet = await Pet.findByPk(petId, {
+        include: [
+          { 
+            model: Usuario, 
+            as: 'responsavel',
+            include: [
+              { model: Cidade, as: 'cidade' },
+              { model: Estado, as: 'estado' },
+            ]
+          },
+        ],
+      });
+
       if (!pet) {
         res.status(404).json({
           error: 'Pet não encontrado',
@@ -123,30 +142,36 @@ export class TermosCompromissoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO
-      let dadosUsuario;
+      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO ADOTANTE COM LOCALIZAÇÃO
+      let dadosAdotante;
       try {
-        dadosUsuario = await Usuario.findByPk(adotanteId);
-        if (!dadosUsuario) {
+        dadosAdotante = await Usuario.findByPk(adotanteId, {
+          include: [
+            { model: Cidade, as: 'cidade' },
+            { model: Estado, as: 'estado' },
+          ],
+        });
+
+        if (!dadosAdotante) {
           res.status(404).json({
-            error: 'Usuário não encontrado',
+            error: 'Usuário adotante não encontrado',
           });
           return;
         }
       } catch (error) {
-        console.error('❌ Erro ao buscar dados do usuário:', error);
+        console.error('❌ Erro ao buscar dados do adotante:', error);
         res.status(500).json({
-          error: 'Erro ao buscar dados do usuário',
+          error: 'Erro ao buscar dados do usuário adotante',
         });
         return;
       }
 
       // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
-      const termoExistente = await TermoCompromisso.findByPet(petId);
+      const termoExistente = await TermoAdocao.findByPet(petId);
 
       if (termoExistente && isNameUpdate) {
         console.log('🔄 Atualizando termo existente com novo nome do usuário...');
-        
+
         // Verificar se o termo pertence ao usuário atual
         if (termoExistente.adotante_id !== adotanteId) {
           res.status(403).json({
@@ -155,26 +180,26 @@ export class TermosCompromissoController {
           return;
         }
 
-        // Atualizar termo existente com novos dados
-        const termoAtualizado = await TermoCompromisso.atualizarComNovoNome(termoExistente.id, {
+        // 🆕 Atualizar termo existente com novos dados COMPLETOS
+        const termoAtualizado = await TermoAdocao.atualizarComNovoNome(termoExistente.id, {
           adotante_id: adotanteId,
-          adotante_nome: dadosUsuario.nome || assinaturaDigital,
-          adotante_email: dadosUsuario.email,
-          adotante_telefone: dadosUsuario.telefone,
-          adotante_cpf: dadosUsuario.cpf,
-          adotante_cidade_id: dadosUsuario.cidade_id,
-          adotante_estado_id: dadosUsuario.estado_id,
+          adotante_nome: dadosAdotante.nome || assinaturaDigital,
+          adotante_email: dadosAdotante.email,
+          adotante_telefone: dadosAdotante.telefone,
+          adotante_cpf: dadosAdotante.cpf,
+          adotante_cidade_id: dadosAdotante.cidade_id,
+          adotante_estado_id: dadosAdotante.estado_id,
           assinatura_digital: assinaturaDigital,
           observacoes: observacoes,
         });
 
         // Buscar termo completo para resposta
-        const termoCompleto = await TermoCompromisso.findByPet(petId);
+        const termoCompleto = await TermoAdocao.findByPet(petId);
 
-        // Enviar email com novo PDF (não bloqueia a resposta)
+        // 🆕 Enviar email personalizado para AMBOS (não bloqueia a resposta)
         emailService
           .enviarTermoPDF(termoCompleto!)
-          .catch((error) => console.error('Erro ao enviar email com termo atualizado:', error));
+          .catch((error) => console.error('Erro ao enviar emails com termo atualizado:', error));
 
         res.status(200).json({
           message: 'Termo de compromisso atualizado com sucesso (novo nome)',
@@ -184,7 +209,7 @@ export class TermosCompromissoController {
         return;
       }
 
-      // 🔄 LÓGICA ORIGINAL - CRIAR NOVO TERMO
+      // LÓGICA ORIGINAL - CRIAR NOVO TERMO
       if (termoExistente && !isNameUpdate) {
         res.status(409).json({
           error: 'Já existe um termo de compromisso para este pet',
@@ -194,16 +219,16 @@ export class TermosCompromissoController {
       }
 
       // Criar termo usando o método simplificado
-      const novoTermo = await TermoCompromisso.criarComDados({
+      const novoTermo = await TermoAdocao.criarComDados({
         pet_id: petId,
         adotante_id: adotanteId,
         assinatura_digital: assinaturaDigital,
         observacoes: observacoes,
-        isNameUpdate, // 🆕 Passar flag para o modelo
+        isNameUpdate,
       });
 
-      // 🆕 Buscar termo completo para resposta
-      const termoCompleto = await TermoCompromisso.findByPet(petId);
+      // Buscar termo completo para resposta
+      const termoCompleto = await TermoAdocao.findByPet(petId);
 
       res.status(201).json({
         message: 'Termo de compromisso criado com sucesso',
@@ -242,12 +267,17 @@ export class TermosCompromissoController {
     try {
       const { id } = req.params;
 
-      const termo = await TermoCompromisso.findOne({
+      const termo = await TermoAdocao.findOne({
         where: { id: id },
         include: [
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
+          // 🆕 Incluir relacionamentos de localização
+          { model: Estado, as: 'estadoDoador' },
+          { model: Cidade, as: 'cidadeDoador' },
+          { model: Estado, as: 'estadoAdotante' },
+          { model: Cidade, as: 'cidadeAdotante' },
         ],
       });
 
@@ -280,7 +310,7 @@ export class TermosCompromissoController {
       const { petId } = req.params;
       const usuarioId = req.user?.id;
 
-      const termo = await TermoCompromisso.findByPet(parseInt(petId));
+      const termo = await TermoAdocao.findByPet(parseInt(petId));
 
       if (!termo) {
         res.status(404).json({
@@ -290,21 +320,28 @@ export class TermosCompromissoController {
         return;
       }
 
-      // 🆕 SE USUÁRIO ESTÁ LOGADO, VERIFICAR SE NOME MUDOU
+      // SE USUÁRIO ESTÁ LOGADO, VERIFICAR SE NOME MUDOU
       let nomeDesatualizado = false;
 
       if (usuarioId && termo.adotante_id === usuarioId) {
         try {
-          // Buscar dados atuais do usuário
-          const dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
-          
+          // 🆕 Buscar dados atuais do usuário COM localização
+          const dadosUsuarioAtual = await Usuario.findByPk(usuarioId, {
+            include: [
+              { model: Cidade, as: 'cidade' },
+              { model: Estado, as: 'estado' },
+            ],
+          });
+
           if (dadosUsuarioAtual) {
             const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
             const nomeNoTermo = termo.adotante_nome || '';
-            
+
             if (nomeAtualUsuario !== nomeNoTermo) {
               nomeDesatualizado = true;
-              console.log(`⚠️ Nome desatualizado no termo! Usuário ${usuarioId} - Atual: "${nomeAtualUsuario}" vs Termo: "${nomeNoTermo}"`);
+              console.log(
+                `⚠️ Nome desatualizado no termo! Usuário ${usuarioId} - Atual: "${nomeAtualUsuario}" vs Termo: "${nomeNoTermo}"`
+              );
             }
           }
         } catch (error) {
@@ -316,7 +353,10 @@ export class TermosCompromissoController {
         message: 'Termo encontrado',
         data: {
           ...termo.toJSON(),
-          nomeDesatualizado, // 🆕 Flag indicando se nome mudou
+          nomeDesatualizado,
+          // 🆕 Adicionar informações de localização formatadas
+          localizacaoDoador: termo.getLocalizacaoDoador(),
+          localizacaoAdotante: termo.getLocalizacaoAdotante(),
         },
       });
     } catch (error: any) {
@@ -329,7 +369,7 @@ export class TermosCompromissoController {
   }
 
   /**
-   * ✅ 🆕 VERIFICAR SE USUÁRIO PODE ADOTAR PET (COM VERIFICAÇÃO DE NOME)
+   * ✅ VERIFICAR SE USUÁRIO PODE ADOTAR PET (COM VERIFICAÇÃO DE NOME)
    * GET /api/termos-compromisso/pode-adotar/:petId
    */
   static async podeAdotar(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -370,10 +410,16 @@ export class TermosCompromissoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO
+      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO COM LOCALIZAÇÃO
       let dadosUsuarioAtual;
       try {
-        dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
+        dadosUsuarioAtual = await Usuario.findByPk(usuarioId, {
+          include: [
+            { model: Cidade, as: 'cidade' },
+            { model: Estado, as: 'estado' },
+          ],
+        });
+
         if (!dadosUsuarioAtual) {
           res.status(200).json({
             message: 'Usuário não encontrado',
@@ -404,19 +450,19 @@ export class TermosCompromissoController {
       let nomeDesatualizado = false;
 
       try {
-        const termo = await TermoCompromisso.findByPet(parseInt(petId));
-        
+        const termo = await TermoAdocao.findByPet(parseInt(petId));
+
         if (termo && termo.adotante_id === usuarioId) {
           temTermo = true;
-          
-          // 🆕 VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
+
+          // VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
           const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
           const nomeNoTermo = termo.adotante_nome || '';
-          
+
           console.log(`📋 Comparando nomes:`, {
             nomeAtual: nomeAtualUsuario,
             nomeNoTermo: nomeNoTermo,
-            iguais: nomeAtualUsuario === nomeNoTermo
+            iguais: nomeAtualUsuario === nomeNoTermo,
           });
 
           if (nomeAtualUsuario !== nomeNoTermo) {
@@ -440,7 +486,6 @@ export class TermosCompromissoController {
           temTermo = false;
           console.log(`ℹ️ Pet não possui termo, usuário pode adotar`);
         }
-
       } catch (error: any) {
         console.error(`❌ Erro ao verificar termo do pet ${petId}:`, error);
         podeAdotar = false;
@@ -453,7 +498,7 @@ export class TermosCompromissoController {
         data: {
           podeAdotar,
           temTermo,
-          nomeDesatualizado, // 🆕 Indica se precisa atualizar por nome diferente
+          nomeDesatualizado,
         },
       });
     } catch (error: any) {
@@ -485,7 +530,7 @@ export class TermosCompromissoController {
         return;
       }
 
-      const termos = await TermoCompromisso.findByDoador(usuarioId);
+      const termos = await TermoAdocao.findByDoador(usuarioId);
 
       res.json({
         message: 'Pets doados encontrados',
@@ -516,7 +561,7 @@ export class TermosCompromissoController {
         return;
       }
 
-      const termos = await TermoCompromisso.findByAdotante(usuarioId);
+      const termos = await TermoAdocao.findByAdotante(usuarioId);
 
       res.json({
         message: 'Pets adotados encontrados',
@@ -538,7 +583,7 @@ export class TermosCompromissoController {
    */
   static async stats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await TermoCompromisso.contarTermos();
+      const stats = await TermoAdocao.contarTermos();
 
       res.json({
         message: 'Estatísticas obtidas',
@@ -561,12 +606,17 @@ export class TermosCompromissoController {
     try {
       const { id } = req.params;
 
-      const termo = await TermoCompromisso.findOne({
+      const termo = await TermoAdocao.findOne({
         where: { id: id },
         include: [
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
+          // 🆕 Incluir relacionamentos de localização
+          { model: Estado, as: 'estadoDoador' },
+          { model: Cidade, as: 'cidadeDoador' },
+          { model: Estado, as: 'estadoAdotante' },
+          { model: Cidade, as: 'cidadeAdotante' },
         ],
       });
 
@@ -586,7 +636,7 @@ export class TermosCompromissoController {
       doc.pipe(res);
 
       // Gerar conteúdo
-      TermosCompromissoController.gerarConteudoPDF(doc, termo);
+      TermoAdocaoController.gerarConteudoPDF(doc, termo);
 
       doc.end();
     } catch (error: any) {
@@ -599,22 +649,27 @@ export class TermosCompromissoController {
   }
 
   /**
-   * 📧 🆕 Enviar termo por email
+   * 🆕 📧 Enviar termo por email PARA AMBOS (doador e adotante)
    * POST /api/termos-compromisso/:id/enviar-email
    */
   static async enviarPorEmail(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
-      console.log(`📧 Iniciando envio do termo ${id} por email...`);
+      console.log(`📧 Iniciando envio do termo ${id} por email para ambos...`);
 
-      // Buscar termo completo
-      const termo = await TermoCompromisso.findOne({
+      // Buscar termo completo COM relacionamentos de localização
+      const termo = await TermoAdocao.findOne({
         where: { id: id },
         include: [
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
+          // 🆕 Incluir relacionamentos de localização
+          { model: Estado, as: 'estadoDoador' },
+          { model: Cidade, as: 'cidadeDoador' },
+          { model: Estado, as: 'estadoAdotante' },
+          { model: Cidade, as: 'cidadeAdotante' },
         ],
       });
 
@@ -625,24 +680,33 @@ export class TermosCompromissoController {
         return;
       }
 
-      // Verificar se tem email do adotante
-      if (!termo.adotante_email) {
+      // 🆕 Verificar se ambos os emails estão disponíveis
+      if (!termo.doador_email || !termo.adotante_email) {
         res.status(400).json({
-          error: 'Email do adotante não encontrado',
+          error: 'Emails não disponíveis',
+          details: {
+            doadorEmail: termo.doador_email ? 'Disponível' : 'Não encontrado',
+            adotanteEmail: termo.adotante_email ? 'Disponível' : 'Não encontrado',
+          },
         });
         return;
       }
 
-      // Enviar email com o termo
+      // 🆕 Enviar email personalizado para AMBOS
       await emailService.enviarTermoPDF(termo);
 
-      console.log(`✅ Termo ${id} enviado por email para ${termo.adotante_email}`);
+      console.log(`✅ Termo ${id} enviado por email para ambos os usuários`);
+      console.log(`📨 Doador: ${termo.doador_email}`);
+      console.log(`📨 Adotante: ${termo.adotante_email}`);
 
       res.json({
-        message: 'Termo enviado por email com sucesso',
+        message: 'Termo enviado por email com sucesso para ambos os usuários',
         data: {
           termoId: id,
-          destinatario: termo.adotante_email,
+          destinatarios: {
+            doador: termo.doador_email,
+            adotante: termo.adotante_email,
+          },
           petNome: termo.pet_nome,
           dataEnvio: new Date().toISOString(),
         },
@@ -650,10 +714,12 @@ export class TermosCompromissoController {
     } catch (error: any) {
       console.error('❌ Erro ao enviar termo por email:', error);
 
-      let errorMessage = 'Erro ao enviar email';
+      let errorMessage = 'Erro ao enviar emails';
 
       if (error.message.includes('Falha ao enviar email')) {
-        errorMessage = 'Falha no envio do email. Verifique o endereço de email e tente novamente.';
+        errorMessage = 'Falha no envio dos emails. Verifique os endereços de email e tente novamente.';
+      } else if (error.message.includes('Emails não disponíveis')) {
+        errorMessage = 'Um ou ambos os emails não estão disponíveis no sistema.';
       }
 
       res.status(500).json({
@@ -671,7 +737,7 @@ export class TermosCompromissoController {
     try {
       const { id } = req.params;
 
-      const termo = await TermoCompromisso.findOne({
+      const termo = await TermoAdocao.findOne({
         where: { id: id },
       });
 
@@ -701,72 +767,127 @@ export class TermosCompromissoController {
     }
   }
 
-  // === MÉTODO AUXILIAR PARA PDF ===
+  // === MÉTODO AUXILIAR PARA PDF COM LOCALIZAÇÃO ===
 
-  private static gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoCompromisso): void {
-    const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR');
+  /**
+   * 🆕 Método auxiliar para formatar telefone
+   */
+  private static formatTelefone(telefone: string | undefined): string {
+    if (!telefone) return 'Não informado';
+
+    const numbers = telefone.replace(/\D/g, '');
+
+    if (!numbers) return 'Não informado';
+
+    if (numbers.length === 11) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    } else if (numbers.length === 10) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    } else if (numbers.length === 13 && numbers.startsWith('55')) {
+      return `+55 (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9)}`;
+    } else if (numbers.length >= 8) {
+      if (numbers.length === 8) {
+        return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+      } else if (numbers.length === 9) {
+        return `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
+      }
+    }
+
+    return numbers.replace(/(\d{4})(?=\d)/g, '$1-');
+  }
+
+  /**
+   * 🆕 Gerar conteúdo do PDF COM informações de localização
+   */
+  private static gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoAdocao): void {
+    const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    let yPosition = 50;
+    const marginBottom = 70;
+    const pageHeight = doc.page.height - marginBottom;
 
     // Cabeçalho
-    doc.fontSize(20).font('Helvetica-Bold').text('TERMO DE COMPROMISSO DE ADOÇÃO', 0, 50, { align: 'center' });
+    doc.fontSize(18).font('Helvetica-Bold').text('TERMO DE COMPROMISSO DE ADOÇÃO', 0, yPosition, { align: 'center' });
 
-    doc.fontSize(12).font('Helvetica').text(`Data: ${dataFormatada}`, 0, 90, { align: 'center' });
+    yPosition += 25;
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .text(`Documento ID: ${termo.id} | Data: ${dataFormatada}`, 0, yPosition, { align: 'center' });
+
+    yPosition += 30;
 
     // Dados do Pet
-    doc.fontSize(14).font('Helvetica-Bold').text('DADOS DO PET:', 50, 150);
+    doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO PET:', 50, yPosition);
+    yPosition += 15;
 
     doc
-      .fontSize(12)
+      .fontSize(10)
       .font('Helvetica')
-      .text(`Nome: ${termo.pet_nome}`, 50, 170)
-      .text(`Espécie: ${termo.pet_especie_nome}`, 50, 190)
-      .text(`Raça: ${termo.pet_raca_nome}`, 50, 210)
-      .text(`Sexo: ${termo.pet_sexo_nome}`, 50, 230)
-      .text(`Idade: ${termo.pet_idade} anos`, 50, 250);
+      .text(`Nome: ${termo.pet_nome} | Espécie: ${termo.pet_especie_nome}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(
+      `Raça: ${termo.pet_raca_nome} | Sexo: ${termo.pet_sexo_nome} | Idade: ${termo.pet_idade} anos`,
+      50,
+      yPosition
+    );
 
     if (termo.pet_motivo_doacao) {
-      doc.text(`Motivo da Doação: ${termo.pet_motivo_doacao}`, 50, 270);
+      yPosition += 12;
+      doc.text(`Motivo da Doação: ${termo.pet_motivo_doacao}`, 50, yPosition);
     }
 
-    // Dados do Doador
-    doc.fontSize(14).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, 310);
+    yPosition += 20;
 
-    doc
-      .fontSize(12)
-      .font('Helvetica')
-      .text(`Nome: ${termo.doador_nome}`, 50, 330)
-      .text(`Email: ${termo.doador_email}`, 50, 350);
+    // 🆕 Dados do Doador COM localização
+    doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
+    yPosition += 15;
 
-    if (termo.doador_telefone) {
-      doc.text(`Telefone: ${termo.doador_telefone}`, 50, 370);
-    }
+    doc.fontSize(10).font('Helvetica').text(`Nome: ${termo.doador_nome}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Email: ${termo.doador_email}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Telefone: ${this.formatTelefone(termo.doador_telefone)}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Localização: ${termo.getLocalizacaoDoador()}`, 50, yPosition);
 
-    // Dados do Adotante
-    doc.fontSize(14).font('Helvetica-Bold').text('DADOS DO ADOTANTE:', 50, 410);
+    yPosition += 20;
 
-    doc
-      .fontSize(12)
-      .font('Helvetica')
-      .text(`Nome: ${termo.adotante_nome}`, 50, 430)
-      .text(`Email: ${termo.adotante_email}`, 50, 450);
+    // 🆕 Dados do Adotante COM localização
+    doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ADOTANTE:', 50, yPosition);
+    yPosition += 15;
 
-    if (termo.adotante_telefone) {
-      doc.text(`Telefone: ${termo.adotante_telefone}`, 50, 470);
-    }
+    doc.fontSize(10).font('Helvetica').text(`Nome: ${termo.adotante_nome}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Email: ${termo.adotante_email}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Telefone: ${this.formatTelefone(termo.adotante_telefone)}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Localização: ${termo.getLocalizacaoAdotante()}`, 50, yPosition);
 
     if (termo.adotante_cpf) {
-      doc.text(`CPF: ${termo.adotante_cpf}`, 50, 490);
+      yPosition += 12;
+      doc.text(`CPF: ${termo.adotante_cpf}`, 50, yPosition);
     }
 
-    // Nova página se necessário
-    if (doc.y > 600) {
+    yPosition += 20;
+
+    // Verificar se precisa de nova página
+    if (yPosition > pageHeight - 150) {
       doc.addPage();
+      yPosition = 50;
     }
 
     // Compromissos do Adotante
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .text('COMPROMISSOS DO ADOTANTE:', 50, doc.y + 30);
+    doc.fontSize(12).font('Helvetica-Bold').text('COMPROMISSOS DO ADOTANTE:', 50, yPosition);
+
+    yPosition += 15;
 
     const compromissos = [
       'Proporcionar cuidados veterinários adequados ao pet.',
@@ -778,43 +899,70 @@ export class TermosCompromissoController {
       'Informar mudanças de endereço ou contato.',
     ];
 
-    doc.fontSize(12).font('Helvetica');
+    doc.fontSize(9).font('Helvetica');
     compromissos.forEach((compromisso, index) => {
-      doc.text(`${index + 1}. ${compromisso}`, 50, doc.y + 15);
+      if (yPosition > pageHeight - 100) {
+        doc.addPage();
+        yPosition = 50;
+      }
+      doc.text(`${index + 1}. ${compromisso}`, 50, yPosition, { width: 500 });
+      yPosition += 11;
     });
+
+    yPosition += 10;
 
     // Observações
     if (termo.observacoes) {
-      doc
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text('OBSERVAÇÕES:', 50, doc.y + 30);
+      const observacoesHeight = Math.min(80, termo.observacoes.length / 8 + 30);
+      if (yPosition + observacoesHeight > pageHeight - 100) {
+        doc.addPage();
+        yPosition = 50;
+      }
 
-      doc
-        .fontSize(12)
-        .font('Helvetica')
-        .text(termo.observacoes, 50, doc.y + 15, { width: 500 });
+      doc.fontSize(12).font('Helvetica-Bold').text('OBSERVAÇÕES:', 50, yPosition);
+      yPosition += 15;
+      doc.fontSize(10).font('Helvetica').text(termo.observacoes, 50, yPosition, { width: 500 });
+      yPosition += observacoesHeight - 30;
     }
 
+    // Verificar espaço para assinatura
+    if (yPosition + 140 > pageHeight) {
+      doc.addPage();
+      yPosition = 50;
+    }
+
+    yPosition += 15;
+
     // Assinatura
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .text('ASSINATURA DIGITAL:', 50, doc.y + 30);
+    doc.fontSize(12).font('Helvetica-Bold').text('ASSINATURA DIGITAL:', 50, yPosition);
+    yPosition += 15;
+    doc.fontSize(10).font('Helvetica').text(`Assinatura: ${termo.assinatura_digital}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Data: ${dataFormatada}`, 50, yPosition);
+    yPosition += 12;
+    doc.text(`Hash: ${termo.hash_documento}`, 50, yPosition);
 
-    doc
-      .fontSize(12)
-      .font('Helvetica')
-      .text(`Assinatura: ${termo.assinatura_digital}`, 50, doc.y + 15)
-      .text(`Data: ${dataFormatada}`, 50, doc.y + 10)
-      .text(`Hash: ${termo.hash_documento}`, 50, doc.y + 10);
+    yPosition += 30;
 
-    // Rodapé
+    // Declaração de validade
     doc
       .fontSize(10)
-      .font('Helvetica')
-      .text('Documento gerado digitalmente pelo App de Adoção de Pets', 0, doc.page.height - 50, {
-        align: 'center',
-      });
+      .font('Helvetica-Oblique')
+      .text(
+        'Este documento foi assinado digitalmente e possui validade legal conforme a legislação vigente.',
+        50,
+        yPosition,
+        { width: 500, align: 'center' }
+      );
+
+    yPosition += 30;
+
+    // Rodapé
+    doc.fontSize(8).font('Helvetica').text(
+      'Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets',
+      50,
+      yPosition,
+      { width: 500, align: 'center' }
+    );
   }
 }
