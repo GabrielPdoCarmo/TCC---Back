@@ -16,6 +16,41 @@ import nodemailer from 'nodemailer';
 import { Op } from 'sequelize';
 
 export class UsuarioController {
+  // NOVA FUNÇÃO: Validação granular de senha
+  private static validarSenha(senha: string): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!senha) {
+      errors.push('A senha é obrigatória');
+      return { isValid: false, errors };
+    }
+
+    // Verificar se a senha tem pelo menos 8 caracteres
+    if (senha.length < 8) {
+      errors.push('A senha deve ter pelo menos 8 caracteres');
+    }
+
+    // Verificar se tem pelo menos uma letra minúscula
+    if (!/[a-z]/.test(senha)) {
+      errors.push('A senha deve possuir letras minúsculas');
+    }
+
+    // Verificar se tem pelo menos uma letra maiúscula
+    if (!/[A-Z]/.test(senha)) {
+      errors.push('A senha deve possuir letras maiúsculas');
+    }
+
+    // Verificar se tem pelo menos um caractere especial
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(senha)) {
+      errors.push('A senha deve possuir caracteres especiais');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuarios = await Usuario.findAll();
@@ -215,16 +250,14 @@ export class UsuarioController {
         });
       }
 
-      // Verificar se a senha foi fornecida
-      if (!senha) {
-        return res.status(400).json({ error: 'Senha é obrigatória.' });
-      }
-
-      // Verificar se a senha tem pelo menos 12 caracteres
-      if (senha.length < 12) {
-        return res
-          .status(400)
-          .json({ error: 'Senha muito curta', message: 'A senha deve ter pelo menos 12 caracteres.' });
+      // NOVA VALIDAÇÃO: Usar a função de validação granular de senha
+      const validacaoSenha = UsuarioController.validarSenha(senha);
+      if (!validacaoSenha.isValid) {
+        return res.status(400).json({
+          error: 'Senha inválida',
+          message: validacaoSenha.errors.join(', '),
+          passwordErrors: validacaoSenha.errors
+        });
       }
 
       // Hash da senha antes de salvar
@@ -553,6 +586,17 @@ export class UsuarioController {
 
       // Criptografar a senha se foi fornecida
       if (senha && senha.trim() !== '') {
+        // NOVA VALIDAÇÃO: Usar a função de validação granular de senha
+        const validacaoSenha = UsuarioController.validarSenha(senha);
+        if (!validacaoSenha.isValid) {
+          res.status(400).json({
+            error: 'Senha inválida',
+            message: validacaoSenha.errors.join(', '),
+            passwordErrors: validacaoSenha.errors
+          });
+          return;
+        }
+
         const saltRounds = 10;
         dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
         console.log('Nova senha recebida e criptografada manualmente');
