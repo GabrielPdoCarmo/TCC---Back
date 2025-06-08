@@ -79,6 +79,7 @@ export class PetController {
   static getByNomePet_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { nome } = req.params;
+      const { usuario_id } = req.body;
 
       // Verificar se o nome foi fornecido
       if (!nome) {
@@ -86,26 +87,43 @@ export class PetController {
         return;
       }
 
-      // Buscar o pet pelo nome e status_id 3 ou 4
+      // Verificar se o usuario_id foi fornecido
+      if (!usuario_id) {
+        res.status(400).json({ error: 'ID do usuário não fornecido.' });
+        return;
+      }
+
+      // Verificar se o usuário existe
+      const usuario = await Usuario.findByPk(usuario_id);
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+
+      // Buscar o pet pelo nome, status_id 3 ou 4 E que pertença ao usuário logado
       const pets = await Pet.findAll({
         where: {
           nome: nome,
           status_id: [3, 4], // Filtra apenas pets com status 3 ou 4
+          usuario_id: usuario_id, // NOVO: Filtra apenas pets do usuário logado
         },
       });
 
       // Se não encontrou nenhum pet
       if (pets.length === 0) {
-        res.status(404).json({ error: 'Nenhum pet encontrado com este nome e status válido (3 ou 4).' });
+        res.status(404).json({
+          error: 'Nenhum pet encontrado com este nome, status válido (3 ou 4) e que pertença ao usuário.'
+        });
         return;
       }
 
       res.status(200).json(pets);
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Erro ao buscar pet pelo nome e status.' });
+      res.status(500).json({ error: 'Erro ao buscar pet pelo nome, status e usuário.' });
     }
   };
+
   static getByRacaId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { raca_id } = req.params;
@@ -686,8 +704,8 @@ export class PetController {
           ? fotoUrl.includes('supabase')
             ? 'supabase'
             : fotoUrl.startsWith('file:///')
-            ? 'arquivo_local'
-            : 'outro'
+              ? 'arquivo_local'
+              : 'outro'
           : 'sem_imagem',
         imagemDeletada: imagemDeletada,
       });
