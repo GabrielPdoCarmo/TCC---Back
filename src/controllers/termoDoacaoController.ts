@@ -76,7 +76,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao listar termos de doação:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -156,7 +155,6 @@ export class TermoDoacaoController {
           return;
         }
       } catch (error) {
-        console.error('❌ Erro ao buscar dados do usuário:', error);
         res.status(500).json({
           error: 'Erro ao buscar dados do usuário',
         });
@@ -167,8 +165,6 @@ export class TermoDoacaoController {
       const termoExistente = await TermoDoacao.findByDoador(doadorId);
 
       if (termoExistente && isDataUpdate) {
-        console.log('🔄 Atualizando termo existente com dados atualizados do usuário...');
-        
         // Atualizar termo existente com novos dados
         const termoAtualizado = await TermoDoacao.atualizarComDadosAtualizados(termoExistente.id, {
           doador_id: doadorId,
@@ -194,9 +190,7 @@ export class TermoDoacaoController {
         const termoCompleto = await TermoDoacao.findByDoador(doadorId);
 
         // Enviar email com novo PDF (não bloqueia a resposta)
-        emailTermoDoacaoService
-          .enviarTermoDoacaoPDF(termoCompleto!)
-          .catch((error) => console.error('Erro ao enviar email com termo atualizado:', error));
+        emailTermoDoacaoService.enviarTermoDoacaoPDF(termoCompleto!).catch((error) => {});
 
         res.status(200).json({
           message: 'Termo de doação atualizado com sucesso (dados atualizados)',
@@ -240,9 +234,7 @@ export class TermoDoacaoController {
       const termoCompleto = await TermoDoacao.findByDoador(doadorId);
 
       // Enviar email de confirmação (não bloqueia a resposta)
-      emailTermoDoacaoService
-        .enviarConfirmacaoTermo(termoCompleto!)
-        .catch((error) => console.error('Erro ao enviar email de confirmação:', error));
+      emailTermoDoacaoService.enviarConfirmacaoTermo(termoCompleto!).catch((error) => {});
 
       res.status(201).json({
         message: 'Termo de doação criado com sucesso',
@@ -250,8 +242,6 @@ export class TermoDoacaoController {
         updated: false,
       });
     } catch (error: any) {
-      console.error('Erro ao criar/atualizar termo de doação:', error);
-
       let statusCode = 500;
       let errorMessage = 'Erro interno do servidor';
 
@@ -302,7 +292,6 @@ export class TermoDoacaoController {
         data: termo,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar termo:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -340,7 +329,6 @@ export class TermoDoacaoController {
         canCreatePets: true,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar termo:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -371,7 +359,6 @@ export class TermoDoacaoController {
         total: termos.length,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar histórico:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -395,8 +382,6 @@ export class TermoDoacaoController {
         return;
       }
 
-      console.log(`🔍 Verificando se usuário ${usuarioId} pode cadastrar pets...`);
-
       // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO
       let dadosUsuarioAtual;
       try {
@@ -413,7 +398,6 @@ export class TermoDoacaoController {
           return;
         }
       } catch (error) {
-        console.error('❌ Erro ao buscar dados atuais do usuário:', error);
         res.status(200).json({
           message: 'Erro ao buscar dados do usuário',
           data: {
@@ -432,10 +416,10 @@ export class TermoDoacaoController {
 
       try {
         const termo = await TermoDoacao.findByDoador(usuarioId);
-        
+
         if (termo) {
           temTermo = true;
-          
+
           // 🆕 VERIFICAR SE DADOS PRINCIPAIS NO TERMO SÃO DIFERENTES DOS DADOS ATUAIS
           const dadosAtualUsuario = {
             nome: dadosUsuarioAtual.nome || '',
@@ -444,7 +428,7 @@ export class TermoDoacaoController {
             cidade_id: dadosUsuarioAtual.cidade_id || null,
             estado_id: dadosUsuarioAtual.estado_id || null,
           };
-          
+
           const dadosNoTermo = {
             nome: termo.doador_nome || '',
             email: termo.doador_email || '',
@@ -452,11 +436,6 @@ export class TermoDoacaoController {
             cidade_id: termo.doador_cidade_id || null,
             estado_id: termo.doador_estado_id || null,
           };
-          
-          console.log(`📋 Comparando dados principais (incluindo localização):`, {
-            dadosAtuais: dadosAtualUsuario,
-            dadosNoTermo: dadosNoTermo,
-          });
 
           // Verificar se algum dos dados principais mudou (incluindo localização)
           const nomeIgual = dadosAtualUsuario.nome === dadosNoTermo.nome;
@@ -469,28 +448,17 @@ export class TermoDoacaoController {
             // Dados foram alterados - precisa reAssinar termo
             dadosDesatualizados = true;
             podecastrar = false;
-            
-            console.log(`⚠️ Dados desatualizados! Usuário ${usuarioId} precisa reAssinar termo:`, {
-              nomeIgual,
-              emailIgual,
-              telefoneIgual,
-              cidadeIgual,
-              estadoIgual,
-            });
           } else {
             // Dados estão iguais - pode cadastrar normalmente
             podecastrar = await TermoDoacao.usuarioPodeCadastrarPets(usuarioId);
-            console.log(`✅ Dados atualizados! Usuário ${usuarioId} pode cadastrar: ${podecastrar}`);
           }
         } else {
           // Não tem termo
-          console.log(`ℹ️ Usuário ${usuarioId} não possui termo`);
+
           podecastrar = false;
           temTermo = false;
         }
-
       } catch (modelError: any) {
-        console.error(`❌ Erro ao verificar termo do usuário ${usuarioId}:`, modelError);
         // Em caso de erro, assumir que não pode cadastrar por segurança
         podecastrar = false;
         temTermo = false;
@@ -507,8 +475,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('❌ Erro ao verificar se usuário pode cadastrar pets:', error);
-
       // IMPORTANTE: SEMPRE retornar 200 com podecastrar: false em caso de erro
       res.status(200).json({
         message: 'Erro na verificação',
@@ -573,7 +539,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao validar termo:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -628,7 +593,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao gerar e enviar PDF:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -683,7 +647,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao enviar PDF:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -739,8 +702,6 @@ export class TermoDoacaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao deletar termo de doação:', error);
-
       let statusCode = 500;
       let errorMessage = 'Erro interno do servidor';
 

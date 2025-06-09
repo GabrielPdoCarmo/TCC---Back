@@ -26,7 +26,6 @@ export class PetController {
       const pets = await Pet.findAll();
       res.json(pets); // REMOVIDO o "return"
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao listar os pets.' });
     }
   };
@@ -40,7 +39,6 @@ export class PetController {
       }
       res.json(pet); // REMOVIDO o "return"
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar o pet.' });
     }
   };
@@ -71,7 +69,6 @@ export class PetController {
 
       res.status(200).json(pet);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pet pelo nome.' });
     }
   };
@@ -119,7 +116,6 @@ export class PetController {
 
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pet pelo nome, status e usuário.' });
     }
   };
@@ -144,7 +140,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por raça.' });
     }
   };
@@ -172,7 +167,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por raça e status.' });
     }
   };
@@ -197,7 +191,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por espécie.' });
     }
   };
@@ -225,7 +218,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por espécie e status.' });
     }
   };
@@ -253,7 +245,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por cidade e estado.' });
     }
   };
@@ -282,7 +273,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por cidade, estado e status.' });
     }
   };
@@ -310,7 +300,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por faixa etária e idade.' });
     }
   };
@@ -342,7 +331,6 @@ export class PetController {
       }
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por faixa etária, idade e status.' });
     }
   };
@@ -373,7 +361,6 @@ export class PetController {
       // ou você pode preferir status 404 com uma mensagem - conforme sua preferência
       res.status(200).json(pets);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar pets por usuário.' });
     }
   };
@@ -398,18 +385,12 @@ export class PetController {
         doencas,
       } = req.body;
 
-      console.log('Dados recebidos:', req.body);
-      console.log('Arquivo recebido:', req.file);
-
       // ========== PROCESSAMENTO DE UPLOAD DE IMAGEM ==========
       let fotoUrl = null;
 
       // Verificar se um arquivo de imagem foi enviado via multer
       if (req.file) {
         try {
-          console.log('Arquivo presente, tamanho:', req.file.size);
-          console.log('Tipo de arquivo:', req.file.mimetype);
-
           const fileBuffer = req.file.buffer;
 
           // Gerar nome único para o arquivo evitando conflitos
@@ -421,18 +402,12 @@ export class PetController {
           });
 
           if (error) {
-            console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
             // Obter URL pública da imagem para armazenar no banco
             const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
             fotoUrl = publicData?.publicUrl ?? null;
-            console.log('URL da imagem gerada:', fotoUrl);
           }
-        } catch (fileError) {
-          console.error('Erro ao processar o arquivo:', fileError);
-        }
-      } else {
-        console.log('Nenhum arquivo foi enviado');
+        } catch (fileError) {}
       }
 
       // ========== VALIDAÇÕES DE NEGÓCIO ==========
@@ -472,8 +447,6 @@ export class PetController {
         foto: fotoUrl, // URL da imagem no Supabase ou null
       });
 
-      console.log('Pet criado com sucesso:', novoPet.id);
-
       // ========== CRIAÇÃO DE RELACIONAMENTOS ==========
       // Associar doenças/deficiências ao pet (relacionamento N:N)
       if (doencas && Array.isArray(doencas)) {
@@ -492,7 +465,6 @@ export class PetController {
             });
           })
         );
-        console.log('Doenças associadas ao pet');
       }
 
       // Retornar pet criado com status HTTP 201
@@ -517,12 +489,10 @@ export class PetController {
 
       if ('rg_Pet' in dadosAtualizados) {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
-        console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
       }
 
       if ('rg_Pet' in dadosAtualizados) {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
-        console.log('rg_Pet sanitizado:', dadosAtualizados.rg_Pet);
       }
 
       // Verificar se tem um arquivo de imagem
@@ -533,14 +503,12 @@ export class PetController {
 
       // Se for uma URL local, precisamos fazer upload para o Supabase
       if (isLocalImage && !req.file) {
-        console.log('URL local detectada sem novo arquivo de upload, essa URL não pode ser usada:', fotoUrl);
         // Duas opções aqui:
         // 1. Manter a URL anterior do Supabase (se existir)
         // 2. Informar erro ao cliente
 
         // Opção 1: Manter a URL anterior
         if (pet.foto && pet.foto.includes('supabase')) {
-          console.log('Mantendo a URL anterior do Supabase:', pet.foto);
           fotoUrl = pet.foto;
         } else {
           // Opção 2: Informar erro
@@ -559,22 +527,11 @@ export class PetController {
           // devemos deletar a antiga do Supabase APENAS se for uma URL do Supabase
           const petFoto = pet.foto;
           if (petFoto && petFoto.includes('supabase')) {
-            console.log('Tentando deletar imagem antiga do Supabase ao atualizar pet:', petFoto);
-
             const urlParts = petFoto.split('pet-images/');
             if (urlParts.length > 1) {
               const filePath = urlParts[1].split('?')[0]; // Extrair caminho correto
-              console.log('Caminho extraído para deleção:', filePath);
 
               const { error: deleteError } = await supabase.storage.from('pet-images').remove([filePath]);
-
-              if (deleteError) {
-                console.error('Erro ao deletar imagem antiga do Supabase:', deleteError);
-              } else {
-                console.log('Imagem antiga deletada com sucesso durante atualização');
-              }
-            } else {
-              console.error('Formato de URL inesperado, não foi possível extrair caminho para deleção:', petFoto);
             }
           }
 
@@ -590,15 +547,11 @@ export class PetController {
           });
 
           if (error) {
-            console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
             const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
             fotoUrl = publicData?.publicUrl ?? null;
-            console.log('Nova URL da imagem gerada:', fotoUrl);
           }
-        } catch (fileError) {
-          console.error('Erro ao processar o arquivo:', fileError);
-        }
+        } catch (fileError) {}
       }
 
       // Adicionar a URL da foto aos dados atualizados
@@ -623,7 +576,6 @@ export class PetController {
 
       res.json(petAtualizado);
     } catch (error) {
-      console.error('Erro ao atualizar o pet:', error);
       res.status(500).json({ error: 'Erro ao atualizar o pet.' });
     }
   };
@@ -644,8 +596,6 @@ export class PetController {
       // Usar apenas foto, padronizando com as outras rotas
       const fotoUrl = petData.foto;
 
-      console.log('Pet a ser deletado:', { id, foto: fotoUrl });
-
       // Primeiro remover as associações com doenças/deficiências
       await PetDoencaDeficiencia.destroy({
         where: { pet_id: id },
@@ -653,7 +603,6 @@ export class PetController {
 
       // Agora deletar o pet do banco de dados
       await pet.destroy();
-      console.log('Pet deletado do banco de dados com sucesso');
 
       // Tentar deletar a imagem apenas se for uma URL do Supabase
       // URLs locais (file:///) não precisam ser processadas no servidor
@@ -666,34 +615,20 @@ export class PetController {
           if (urlParts.length > 1) {
             // Extrair o caminho corretamente removendo os parâmetros de consulta (tudo após ?)
             const filePath = urlParts[1].split('?')[0];
-            console.log('Caminho extraído para deleção:', filePath);
 
             const { error: deleteError } = await supabase.storage.from('pet-images').remove([filePath]);
 
             if (deleteError) {
-              console.error('Erro ao deletar imagem do Supabase:', deleteError);
               res.status(200).json({
                 message: 'Pet deletado com sucesso, mas houve um erro ao deletar a imagem.',
                 imageError: deleteError.message,
               });
               return;
             } else {
-              console.log('Imagem deletada com sucesso');
               imagemDeletada = true;
             }
-          } else {
-            console.log(
-              'URL da imagem não contém "pet-images/", não é uma URL do Supabase ou está em formato inesperado:',
-              fotoUrl
-            );
           }
-        } catch (deleteError) {
-          console.error('Erro ao tentar deletar imagem:', deleteError);
-        }
-      } else if (fotoUrl && fotoUrl.startsWith('file:///')) {
-        console.log('URL do tipo arquivo local detectada, não é necessário excluir no servidor:', fotoUrl);
-      } else if (!fotoUrl) {
-        console.log('Nenhuma URL de imagem associada a este pet');
+        } catch (deleteError) {}
       }
 
       res.status(200).json({
@@ -709,7 +644,6 @@ export class PetController {
         imagemDeletada: imagemDeletada,
       });
     } catch (error) {
-      console.error('Erro ao deletar pet:', error);
       res.status(500).json({
         error: 'Erro ao deletar pet.',
       });
@@ -749,7 +683,6 @@ export class PetController {
 
       res.json(petAtualizado);
     } catch (error) {
-      console.error('Erro ao atualizar o status do pet:', error);
       res.status(500).json({ error: 'Erro ao atualizar o status do pet.' });
     }
   };
@@ -766,7 +699,6 @@ export class PetController {
       // Retornar a lista de pets (mesmo que seja vazia)
       res.status(200).json(pets);
     } catch (error) {
-      console.error('Erro ao buscar pets por status:', error);
       res.status(500).json({ error: 'Erro ao buscar pets por status.' });
     }
   };

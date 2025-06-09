@@ -75,7 +75,6 @@ export class TermoAdocaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao listar termos:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -98,12 +97,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      const {
-        petId,
-        assinaturaDigital,
-        observacoes,
-        isNameUpdate = false,
-      }: CreateTermoBody = req.body;
+      const { petId, assinaturaDigital, observacoes, isNameUpdate = false }: CreateTermoBody = req.body;
 
       // Validações básicas
       if (!petId || !assinaturaDigital) {
@@ -117,13 +111,13 @@ export class TermoAdocaoController {
       // 🆕 Verificar se o pet existe e se não é do próprio usuário
       const pet = await Pet.findByPk(petId, {
         include: [
-          { 
-            model: Usuario, 
+          {
+            model: Usuario,
             as: 'responsavel',
             include: [
               { model: Cidade, as: 'cidade' },
               { model: Estado, as: 'estado' },
-            ]
+            ],
           },
         ],
       });
@@ -159,7 +153,6 @@ export class TermoAdocaoController {
           return;
         }
       } catch (error) {
-        console.error('❌ Erro ao buscar dados do adotante:', error);
         res.status(500).json({
           error: 'Erro ao buscar dados do usuário adotante',
         });
@@ -170,8 +163,6 @@ export class TermoAdocaoController {
       const termoExistente = await TermoAdocao.findByPet(petId);
 
       if (termoExistente && isNameUpdate) {
-        console.log('🔄 Atualizando termo existente com novo nome do usuário...');
-
         // Verificar se o termo pertence ao usuário atual
         if (termoExistente.adotante_id !== adotanteId) {
           res.status(403).json({
@@ -197,9 +188,7 @@ export class TermoAdocaoController {
         const termoCompleto = await TermoAdocao.findByPet(petId);
 
         // 🆕 Enviar email personalizado para AMBOS (não bloqueia a resposta)
-        emailService
-          .enviarTermoPDF(termoCompleto!)
-          .catch((error) => console.error('Erro ao enviar emails com termo atualizado:', error));
+        emailService.enviarTermoPDF(termoCompleto!).catch((error) => {});
 
         res.status(200).json({
           message: 'Termo de compromisso atualizado com sucesso (novo nome)',
@@ -236,8 +225,6 @@ export class TermoAdocaoController {
         updated: false,
       });
     } catch (error: any) {
-      console.error('Erro ao criar/atualizar termo:', error);
-
       let statusCode = 500;
       let errorMessage = 'Erro interno do servidor';
 
@@ -293,7 +280,6 @@ export class TermoAdocaoController {
         data: termo,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar termo:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -339,14 +325,9 @@ export class TermoAdocaoController {
 
             if (nomeAtualUsuario !== nomeNoTermo) {
               nomeDesatualizado = true;
-              console.log(
-                `⚠️ Nome desatualizado no termo! Usuário ${usuarioId} - Atual: "${nomeAtualUsuario}" vs Termo: "${nomeNoTermo}"`
-              );
             }
           }
-        } catch (error) {
-          console.error('❌ Erro ao verificar nome do usuário:', error);
-        }
+        } catch (error) {}
       }
 
       res.json({
@@ -360,7 +341,6 @@ export class TermoAdocaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao buscar termo por pet:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -384,8 +364,6 @@ export class TermoAdocaoController {
         });
         return;
       }
-
-      console.log(`🔍 Verificando se usuário ${usuarioId} pode adotar pet ${petId}...`);
 
       // Verificar se pet existe
       const pet = await Pet.findByPk(petId);
@@ -432,7 +410,6 @@ export class TermoAdocaoController {
           return;
         }
       } catch (error) {
-        console.error('❌ Erro ao buscar dados atuais do usuário:', error);
         res.status(200).json({
           message: 'Erro ao buscar dados do usuário',
           data: {
@@ -459,35 +436,24 @@ export class TermoAdocaoController {
           const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
           const nomeNoTermo = termo.adotante_nome || '';
 
-          console.log(`📋 Comparando nomes:`, {
-            nomeAtual: nomeAtualUsuario,
-            nomeNoTermo: nomeNoTermo,
-            iguais: nomeAtualUsuario === nomeNoTermo,
-          });
-
           if (nomeAtualUsuario !== nomeNoTermo) {
             // Nome foi alterado - precisa atualizar termo
             nomeDesatualizado = true;
             podeAdotar = false;
-            console.log(`⚠️ Nome desatualizado! Usuário ${usuarioId} precisa atualizar termo`);
           } else {
             // Nome está igual - pode adotar normalmente
             podeAdotar = true;
-            console.log(`✅ Nome atualizado! Usuário ${usuarioId} pode adotar`);
           }
         } else if (termo && termo.adotante_id !== usuarioId) {
           // Termo existe mas é de outro usuário
           temTermo = true;
           podeAdotar = false;
-          console.log(`ℹ️ Pet já tem termo de outro usuário`);
         } else {
           // Não tem termo
           podeAdotar = true;
           temTermo = false;
-          console.log(`ℹ️ Pet não possui termo, usuário pode adotar`);
         }
       } catch (error: any) {
-        console.error(`❌ Erro ao verificar termo do pet ${petId}:`, error);
         podeAdotar = false;
         temTermo = false;
         nomeDesatualizado = false;
@@ -502,8 +468,6 @@ export class TermoAdocaoController {
         },
       });
     } catch (error: any) {
-      console.error('❌ Erro ao verificar se usuário pode adotar:', error);
-
       res.status(200).json({
         message: 'Erro na verificação',
         data: {
@@ -538,7 +502,6 @@ export class TermoAdocaoController {
         total: termos.length,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar doações:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -569,7 +532,6 @@ export class TermoAdocaoController {
         total: termos.length,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar adoções:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -590,7 +552,6 @@ export class TermoAdocaoController {
         data: stats,
       });
     } catch (error: any) {
-      console.error('Erro ao buscar estatísticas:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -640,7 +601,6 @@ export class TermoAdocaoController {
 
       doc.end();
     } catch (error: any) {
-      console.error('Erro ao gerar PDF:', error);
       res.status(500).json({
         error: 'Erro ao gerar PDF',
         message: error.message,
@@ -655,8 +615,6 @@ export class TermoAdocaoController {
   static async enviarPorEmail(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-
-      console.log(`📧 Iniciando envio do termo ${id} por email para ambos...`);
 
       // Buscar termo completo COM relacionamentos de localização
       const termo = await TermoAdocao.findOne({
@@ -695,10 +653,6 @@ export class TermoAdocaoController {
       // 🆕 Enviar email personalizado para AMBOS
       await emailService.enviarTermoPDF(termo);
 
-      console.log(`✅ Termo ${id} enviado por email para ambos os usuários`);
-      console.log(`📨 Doador: ${termo.doador_email}`);
-      console.log(`📨 Adotante: ${termo.adotante_email}`);
-
       res.json({
         message: 'Termo enviado por email com sucesso para ambos os usuários',
         data: {
@@ -712,8 +666,6 @@ export class TermoAdocaoController {
         },
       });
     } catch (error: any) {
-      console.error('❌ Erro ao enviar termo por email:', error);
-
       let errorMessage = 'Erro ao enviar emails';
 
       if (error.message.includes('Falha ao enviar email')) {
@@ -759,7 +711,6 @@ export class TermoAdocaoController {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao validar termo:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -958,164 +909,145 @@ export class TermoAdocaoController {
     yPosition += 30;
 
     // Rodapé
-    doc.fontSize(8).font('Helvetica').text(
-      'Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets',
-      50,
-      yPosition,
-      { width: 500, align: 'center' }
-    );
+    doc
+      .fontSize(8)
+      .font('Helvetica')
+      .text('Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets', 50, yPosition, {
+        width: 500,
+        align: 'center',
+      });
   }
   // Adicione este método no TermoAdocaoController (dentro da classe)
 
-/**
- * 🗑️ Deletar termo de compromisso
- * DELETE /api/termos-compromisso/:id
- */
-static async deletar(req: AuthenticatedRequest, res: Response): Promise<void> {
-  try {
-    const { id } = req.params;
-    const usuarioId = req.user?.id;
+  /**
+   * 🗑️ Deletar termo de compromisso
+   * DELETE /api/termos-compromisso/:id
+   */
+  static async deletar(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const usuarioId = req.user?.id;
 
-    if (!usuarioId) {
-      res.status(401).json({
-        error: 'Usuário não autenticado',
+      if (!usuarioId) {
+        res.status(401).json({
+          error: 'Usuário não autenticado',
+        });
+        return;
+      }
+
+      // Buscar termo com todas as informações
+      const termo = await TermoAdocao.findOne({
+        where: { id: id },
+        include: [
+          { model: Pet, as: 'pet' },
+          { model: Usuario, as: 'doador' },
+          { model: Usuario, as: 'adotante' },
+        ],
       });
-      return;
-    }
 
-    console.log(`🗑️ Tentativa de deletar termo ${id} pelo usuário ${usuarioId}`);
+      if (!termo) {
+        res.status(404).json({
+          error: 'Termo não encontrado',
+        });
+        return;
+      }
 
-    // Buscar termo com todas as informações
-    const termo = await TermoAdocao.findOne({
-      where: { id: id },
-      include: [
-        { model: Pet, as: 'pet' },
-        { model: Usuario, as: 'doador' },
-        { model: Usuario, as: 'adotante' },
-      ],
-    });
+      // Verificar se o usuário tem permissão para deletar
+      // Pode deletar se for o doador OU o adotante
+      const temPermissao = termo.doador_id === usuarioId || termo.adotante_id === usuarioId;
 
-    if (!termo) {
-      res.status(404).json({
-        error: 'Termo não encontrado',
-      });
-      return;
-    }
+      if (!temPermissao) {
+        res.status(403).json({
+          error: 'Você não tem permissão para deletar este termo',
+          message: 'Apenas o doador ou adotante podem deletar o termo de compromisso',
+        });
+        return;
+      }
 
-    // Verificar se o usuário tem permissão para deletar
-    // Pode deletar se for o doador OU o adotante
-    const temPermissao = 
-      termo.doador_id === usuarioId || 
-      termo.adotante_id === usuarioId;
+      // Salvar informações para log antes de deletar
+      const petNome = termo.pet_nome;
+      const doadorNome = termo.doador_nome;
+      const adotanteNome = termo.adotante_nome;
 
-    if (!temPermissao) {
-      res.status(403).json({
-        error: 'Você não tem permissão para deletar este termo',
-        message: 'Apenas o doador ou adotante podem deletar o termo de compromisso',
-      });
-      return;
-    }
+      // Deletar o termo
+      await termo.destroy();
 
-    // Salvar informações para log antes de deletar
-    const petNome = termo.pet_nome;
-    const doadorNome = termo.doador_nome;
-    const adotanteNome = termo.adotante_nome;
-
-    // Deletar o termo
-    await termo.destroy();
-
-    console.log(`✅ Termo ${id} deletado com sucesso`);
-    console.log(`📋 Pet: ${petNome}`);
-    console.log(`👤 Doador: ${doadorNome}`);
-    console.log(`🏠 Adotante: ${adotanteNome}`);
-    console.log(`🗑️ Deletado por: ${usuarioId === termo.doador_id ? 'Doador' : 'Adotante'}`);
-
-    res.json({
-      message: 'Termo de compromisso deletado com sucesso',
-      data: {
-        termoId: id,
-        petNome: petNome,
-        deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
-        dataDelecao: new Date().toISOString(),
-      },
-    });
-  } catch (error: any) {
-    console.error('❌ Erro ao deletar termo:', error);
-
-    res.status(500).json({
-      error: 'Erro interno do servidor',
-      message: error.message,
-    });
-  }
-}
-
-/**
- * 🗑️ Deletar termo por pet ID (método auxiliar)
- * DELETE /api/termos-compromisso/pet/:petId
- */
-static async deletarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
-  try {
-    const { petId } = req.params;
-    const usuarioId = req.user?.id;
-
-    if (!usuarioId) {
-      res.status(401).json({
-        error: 'Usuário não autenticado',
-      });
-      return;
-    }
-
-    console.log(`🗑️ Tentativa de deletar termo do pet ${petId} pelo usuário ${usuarioId}`);
-
-    // Buscar termo pelo pet
-    const termo = await TermoAdocao.findByPet(parseInt(petId));
-
-    if (!termo) {
-      res.status(404).json({
-        error: 'Termo não encontrado para este pet',
+      res.json({
+        message: 'Termo de compromisso deletado com sucesso',
         data: {
-          temTermo: false,
-          petId: petId,
+          termoId: id,
+          petNome: petNome,
+          deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
+          dataDelecao: new Date().toISOString(),
         },
       });
-      return;
-    }
-
-    // Verificar permissão
-    const temPermissao = 
-      termo.doador_id === usuarioId || 
-      termo.adotante_id === usuarioId;
-
-    if (!temPermissao) {
-      res.status(403).json({
-        error: 'Você não tem permissão para deletar este termo',
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error.message,
       });
-      return;
     }
-
-    // Deletar termo
-    await TermoAdocao.destroy({
-      where: { id: termo.id },
-    });
-
-    console.log(`✅ Termo do pet ${petId} deletado com sucesso`);
-
-    res.json({
-      message: 'Termo deletado com sucesso',
-      data: {
-        termoId: termo.id,
-        petId: petId,
-        petNome: termo.pet_nome,
-        deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
-      },
-    });
-  } catch (error: any) {
-    console.error('❌ Erro ao deletar termo por pet:', error);
-
-    res.status(500).json({
-      error: 'Erro interno do servidor',
-      message: error.message,
-    });
   }
-}
+
+  /**
+   * 🗑️ Deletar termo por pet ID (método auxiliar)
+   * DELETE /api/termos-compromisso/pet/:petId
+   */
+  static async deletarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { petId } = req.params;
+      const usuarioId = req.user?.id;
+
+      if (!usuarioId) {
+        res.status(401).json({
+          error: 'Usuário não autenticado',
+        });
+        return;
+      }
+
+      // Buscar termo pelo pet
+      const termo = await TermoAdocao.findByPet(parseInt(petId));
+
+      if (!termo) {
+        res.status(404).json({
+          error: 'Termo não encontrado para este pet',
+          data: {
+            temTermo: false,
+            petId: petId,
+          },
+        });
+        return;
+      }
+
+      // Verificar permissão
+      const temPermissao = termo.doador_id === usuarioId || termo.adotante_id === usuarioId;
+
+      if (!temPermissao) {
+        res.status(403).json({
+          error: 'Você não tem permissão para deletar este termo',
+        });
+        return;
+      }
+
+      // Deletar termo
+      await TermoAdocao.destroy({
+        where: { id: termo.id },
+      });
+
+      res.json({
+        message: 'Termo deletado com sucesso',
+        data: {
+          termoId: termo.id,
+          petId: petId,
+          petNome: termo.pet_nome,
+          deletadoPor: usuarioId === termo.doador_id ? 'doador' : 'adotante',
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error.message,
+      });
+    }
+  }
 }

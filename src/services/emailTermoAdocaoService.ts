@@ -75,11 +75,13 @@ export class EmailService {
    */
   async enviarTermoPDF(termo: TermoAdocao): Promise<void> {
     try {
-      console.log('📧 Iniciando envio do termo por email para doador e adotante...');
-
       // Verificar se ambos os emails estão disponíveis
       if (!termo.doador_email || !termo.adotante_email) {
-        throw new Error(`Emails não disponíveis - Doador: ${termo.doador_email ? 'OK' : 'FALTANDO'}, Adotante: ${termo.adotante_email ? 'OK' : 'FALTANDO'}`);
+        throw new Error(
+          `Emails não disponíveis - Doador: ${termo.doador_email ? 'OK' : 'FALTANDO'}, Adotante: ${
+            termo.adotante_email ? 'OK' : 'FALTANDO'
+          }`
+        );
       }
 
       // Gerar PDF único (mesmo conteúdo para ambos)
@@ -92,14 +94,9 @@ export class EmailService {
       // 🆕 Enviar email personalizado para o DOADOR
       await this.enviarEmailParaDoador(termo, pdfBuffer, logoBuffer);
 
-      // 🆕 Enviar email personalizado para o ADOTANTE  
+      // 🆕 Enviar email personalizado para o ADOTANTE
       await this.enviarEmailParaAdotante(termo, pdfBuffer, logoBuffer);
-
-      console.log('✅ Emails enviados com sucesso para ambos!');
-      console.log(`📨 Doador: ${termo.doador_email}`);
-      console.log(`📨 Adotante: ${termo.adotante_email}`);
     } catch (error) {
-      console.error('❌ Erro ao enviar emails:', error);
       throw new Error('Falha ao enviar emails com o termo');
     }
   }
@@ -107,11 +104,7 @@ export class EmailService {
   /**
    * 🆕 📧 Enviar email personalizado para o DOADOR
    */
-  private async enviarEmailParaDoador(
-    termo: TermoAdocao, 
-    pdfBuffer: Buffer, 
-    logoBuffer: Buffer
-  ): Promise<void> {
+  private async enviarEmailParaDoador(termo: TermoAdocao, pdfBuffer: Buffer, logoBuffer: Buffer): Promise<void> {
     const mailOptions = {
       from: {
         name: 'Pets_Up - Adoção de Pets',
@@ -136,17 +129,12 @@ export class EmailService {
     };
 
     const info = await this.transporter.sendMail(mailOptions);
-    console.log('✅ Email enviado para DOADOR:', info.messageId);
   }
 
   /**
    * 🆕 📧 Enviar email personalizado para o ADOTANTE
    */
-  private async enviarEmailParaAdotante(
-    termo: TermoAdocao, 
-    pdfBuffer: Buffer, 
-    logoBuffer: Buffer
-  ): Promise<void> {
+  private async enviarEmailParaAdotante(termo: TermoAdocao, pdfBuffer: Buffer, logoBuffer: Buffer): Promise<void> {
     const mailOptions = {
       from: {
         name: 'Pets_Up - Adoção de Pets',
@@ -171,7 +159,6 @@ export class EmailService {
     };
 
     const info = await this.transporter.sendMail(mailOptions);
-    console.log('✅ Email enviado para ADOTANTE:', info.messageId);
   }
 
   /**
@@ -269,7 +256,9 @@ export class EmailService {
                 : ''
             }
 
-            <p>Agradecemos por ter escolhido nossa plataforma para encontrar um lar amoroso para <strong>${termo.pet_nome}</strong>. 
+            <p>Agradecemos por ter escolhido nossa plataforma para encontrar um lar amoroso para <strong>${
+              termo.pet_nome
+            }</strong>. 
             Sua atitude de doação responsável faz toda a diferença na vida dos animais! 🙏</p>
             
             <p>Se precisar de qualquer esclarecimento, estamos à disposição.</p>
@@ -591,12 +580,13 @@ export class EmailService {
     yPosition += 30;
 
     // Rodapé
-    doc.fontSize(8).font('Helvetica').text(
-      'Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets',
-      50,
-      yPosition,
-      { width: 500, align: 'center' }
-    );
+    doc
+      .fontSize(8)
+      .font('Helvetica')
+      .text('Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets', 50, yPosition, {
+        width: 500,
+        align: 'center',
+      });
   }
 
   /**
@@ -621,9 +611,7 @@ export class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('✅ Email enviado:', info.messageId);
     } catch (error) {
-      console.error('❌ Erro ao enviar email:', error);
       throw error;
     }
   }

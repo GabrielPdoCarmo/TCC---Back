@@ -21,9 +21,6 @@ export class AuthController {
         return;
       }
 
-      console.log('Senha fornecida:', senha); // Senha que o usuário forneceu
-      console.log('Senha armazenada (hash):', usuario.senha); // Hash armazenado no banco
-
       const senhaValida = await bcrypt.compare(senha, usuario.senha);
       if (!senhaValida) {
         res.status(401).json({ message: 'Senha ou Email inválida.' });
@@ -44,7 +41,6 @@ export class AuthController {
         },
       });
     } catch (error) {
- 
       res.status(500).json({ message: 'Erro interno no servidor.' });
     }
   }

@@ -7,7 +7,6 @@ export class SexoController {
       const sexos = await Sexo.findAll();
       res.status(200).json(sexos);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar os sexos.' });
     }
   }
@@ -17,11 +16,10 @@ export class SexoController {
     try {
       const sexo = await Sexo.findByPk(req.params.id);
       if (!sexo) {
-      res.status(404).json({ error: 'Sexo não encontrado.' });
+        res.status(404).json({ error: 'Sexo não encontrado.' });
       }
       res.status(200).json(sexo);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar o sexo.' });
     }
   }
@@ -33,7 +31,6 @@ export class SexoController {
       const novoSexo = await Sexo.create({ descricao });
       res.status(201).json(novoSexo);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao criar o sexo.' });
     }
   }
@@ -50,7 +47,6 @@ export class SexoController {
       await sexo.update({ descricao });
       res.status(200).json(sexo);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao atualizar o sexo.' });
     }
   }
@@ -65,7 +61,6 @@ export class SexoController {
       await sexo.destroy();
       res.status(200).json({ message: 'Sexo deletado com sucesso.' });
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao deletar o sexo.' });
     }
   }

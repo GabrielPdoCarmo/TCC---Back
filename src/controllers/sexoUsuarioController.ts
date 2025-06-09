@@ -7,7 +7,6 @@ export class Sexo_UsuarioController {
       const sexos = await Sexo_Usuario.findAll();
       res.status(200).json(sexos);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar os sexos.' });
     }
   }
@@ -20,7 +19,6 @@ export class Sexo_UsuarioController {
       }
       res.status(200).json(sexo);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar o sexo.' });
     }
   }
@@ -42,7 +40,6 @@ export class Sexo_UsuarioController {
       await sexo.update({ descricao });
       res.status(200).json(sexo);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao atualizar o sexo.' });
     }
   }
@@ -57,7 +54,6 @@ export class Sexo_UsuarioController {
       await sexo.destroy();
       res.status(200).json({ message: 'Sexo deletado com sucesso.' });
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao deletar o sexo.' });
     }
   }

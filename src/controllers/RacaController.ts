@@ -30,7 +30,6 @@ export class RacaController {
 
       res.json(raca);
     } catch (error) {
-      console.error('Erro ao buscar raça por ID:', error);
       res.status(500).json({ error: 'Erro ao buscar raça por ID' });
     }
   }
@@ -66,7 +65,6 @@ export class RacaController {
 
       res.json(racas);
     } catch (error) {
-      console.error('Erro ao buscar raças por espécie:', error);
       res.status(500).json({ error: 'Erro ao buscar raças por espécie.' });
     }
   }

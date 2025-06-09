@@ -8,7 +8,6 @@ export class EspecieController {
       const especies = await Especie.findAll();
       res.json(especies);
     } catch (error) {
-      console.error('Erro ao listar espécies:', error);
       res.status(500).json({ error: 'Erro ao listar espécies.' });
     }
   }
@@ -22,7 +21,6 @@ export class EspecieController {
       }
       res.json(especie);
     } catch (error) {
-      console.error('Erro ao buscar espécie:', error);
       res.status(500).json({ error: 'Erro ao buscar espécie.' });
     }
   }
@@ -34,8 +32,6 @@ export class EspecieController {
       const especie = await Especie.create({ nome });
       res.status(201).json(especie);
     } catch (error) {
-      console.error('Erro ao criar espécie:', error);
-
       if (error instanceof UniqueConstraintError) {
         // Tratamento para violação de chave única (nome duplicado)
         res.status(400).json({
@@ -67,8 +63,6 @@ export class EspecieController {
       await especie.update(req.body);
       res.json(especie);
     } catch (error) {
-      console.error('Erro ao atualizar espécie:', error);
-
       if (error instanceof UniqueConstraintError) {
         // Tratamento para violação de chave única
         res.status(400).json({
@@ -100,8 +94,6 @@ export class EspecieController {
       await especie.destroy();
       res.status(204).send();
     } catch (error) {
-      console.error('Erro ao deletar espécie:', error);
-
       if (error instanceof DatabaseError) {
         // Caso exista algum constraint que impede a exclusão (ex: registros relacionados)
         res.status(400).json({

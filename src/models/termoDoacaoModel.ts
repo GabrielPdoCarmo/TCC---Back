@@ -170,7 +170,7 @@ export class TermoDoacao extends Model {
   // === RELACIONAMENTOS ===
   @BelongsTo(() => Usuario, { foreignKey: 'doador_id' })
   doador!: Usuario;
-                          
+
   @BelongsTo(() => Estado, { foreignKey: 'doador_estado_id' })
   estado!: Estado;
 
@@ -316,34 +316,28 @@ export class TermoDoacao extends Model {
    * @param termoId - ID do termo a ser atualizado
    * @param data - Novos dados para atualização
    */
-  static async atualizarComDadosAtualizados(termoId: number, data: {
-    doador_id: number;
-    doador_nome: string;
-    doador_email: string;
-    doador_telefone?: string;
-    doador_cpf?: string;
-    doador_cidade_id?: number;
-    doador_estado_id?: number;
-    motivo_doacao: string;
-    assinatura_digital: string;
-    condicoes_adocao?: string;
-    observacoes?: string;
-    confirma_responsavel_legal: boolean;
-    autoriza_visitas: boolean;
-    aceita_acompanhamento: boolean;
-    confirma_saude: boolean;
-    autoriza_verificacao: boolean;
-    compromete_contato: boolean;
-  }): Promise<TermoDoacao> {
-    console.log('🔄 Atualizando termo existente com dados atualizados:', { 
-      termoId, 
-      novoNome: data.doador_nome,
-      novoEmail: data.doador_email,
-      novoTelefone: data.doador_telefone,
-      novaCidade: data.doador_cidade_id,
-      novoEstado: data.doador_estado_id
-    });
-
+  static async atualizarComDadosAtualizados(
+    termoId: number,
+    data: {
+      doador_id: number;
+      doador_nome: string;
+      doador_email: string;
+      doador_telefone?: string;
+      doador_cpf?: string;
+      doador_cidade_id?: number;
+      doador_estado_id?: number;
+      motivo_doacao: string;
+      assinatura_digital: string;
+      condicoes_adocao?: string;
+      observacoes?: string;
+      confirma_responsavel_legal: boolean;
+      autoriza_visitas: boolean;
+      aceita_acompanhamento: boolean;
+      confirma_saude: boolean;
+      autoriza_verificacao: boolean;
+      compromete_contato: boolean;
+    }
+  ): Promise<TermoDoacao> {
     // Buscar termo existente
     const termo = await this.findByPk(termoId);
     if (!termo) {
@@ -368,14 +362,6 @@ export class TermoDoacao extends Model {
     }
 
     // Log dos dados anteriores
-    console.log('📋 Dados anteriores do termo:', {
-      nome: termo.doador_nome,
-      email: termo.doador_email,
-      telefone: termo.doador_telefone,
-      cidade_id: termo.doador_cidade_id,
-      estado_id: termo.doador_estado_id,
-      dataAssinatura: termo.data_assinatura
-    });
 
     // Atualizar termo com novos dados
     const termoAtualizado = await termo.update({
@@ -403,21 +389,11 @@ export class TermoDoacao extends Model {
       // Atualizar assinatura
       assinatura_digital: data.assinatura_digital,
       data_assinatura: new Date(), // Nova data de assinatura
-      
+
       // Resetar data de envio do PDF para enviar novo
       data_envio_pdf: null,
 
       // Hash será recalculado automaticamente pelo hook @BeforeSave
-    });
-
-    console.log('✅ Termo atualizado com sucesso:', { 
-      termoId: termoAtualizado.id, 
-      novoNome: termoAtualizado.doador_nome,
-      novoEmail: termoAtualizado.doador_email,
-      novoTelefone: termoAtualizado.doador_telefone,
-      novaCidade: termoAtualizado.doador_cidade_id,
-      novoEstado: termoAtualizado.doador_estado_id,
-      novaDataAssinatura: termoAtualizado.data_assinatura
     });
 
     return termoAtualizado;
@@ -453,13 +429,16 @@ export class TermoDoacao extends Model {
    * @param dadosAtuaisUsuario - Dados atuais do usuário (nome, email, telefone, cidade, estado)
    * @returns Promise com status sobre atualização de dados
    */
-  static async precisaAtualizarPorDados(usuarioId: number, dadosAtuaisUsuario: {
-    nome: string;
-    email: string;
-    telefone?: string;
-    cidade_id?: number | null;
-    estado_id?: number | null;
-  }): Promise<{
+  static async precisaAtualizarPorDados(
+    usuarioId: number,
+    dadosAtuaisUsuario: {
+      nome: string;
+      email: string;
+      telefone?: string;
+      cidade_id?: number | null;
+      estado_id?: number | null;
+    }
+  ): Promise<{
     precisaAtualizar: boolean;
     termo?: TermoDoacao;
     dadosNoTermo?: {
@@ -479,7 +458,7 @@ export class TermoDoacao extends Model {
   }> {
     try {
       const termo = await this.findByDoador(usuarioId);
-      
+
       if (!termo) {
         // Não tem termo, não precisa atualizar
         return { precisaAtualizar: false };
@@ -510,15 +489,8 @@ export class TermoDoacao extends Model {
         estado: dadosAtuais.estado_id !== dadosNoTermo.estado_id,
       };
 
-      const precisaAtualizar = diferencias.nome || diferencias.email || diferencias.telefone || diferencias.cidade || diferencias.estado;
-
-      console.log('🔍 Verificando necessidade de atualização por dados alterados (incluindo localização):', {
-        usuarioId,
-        dadosAtuais,
-        dadosNoTermo,
-        diferencias,
-        precisaAtualizar
-      });
+      const precisaAtualizar =
+        diferencias.nome || diferencias.email || diferencias.telefone || diferencias.cidade || diferencias.estado;
 
       return {
         precisaAtualizar,
@@ -526,9 +498,7 @@ export class TermoDoacao extends Model {
         dadosNoTermo,
         diferencias,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao verificar necessidade de atualização de dados:', error);
       return { precisaAtualizar: false };
     }
   }

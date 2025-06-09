@@ -38,7 +38,6 @@ export class FavoritosController {
       const novoFavorito = await Favorito.create({ usuario_id, pet_id });
       res.status(201).json(novoFavorito);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao adicionar aos favoritos.' });
     }
   }
@@ -60,7 +59,6 @@ export class FavoritosController {
 
       res.json(favoritos);
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao buscar favoritos.' });
     }
   }
@@ -93,7 +91,6 @@ export class FavoritosController {
       await favorito.destroy();
       res.status(204).send();
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao remover dos favoritos.' });
     }
   }
@@ -120,7 +117,6 @@ export class FavoritosController {
 
       res.json({ isFavorito: !!favorito });
     } catch (error) {
-      console.error(error);
       res.status(500).json({ error: 'Erro ao verificar favorito.' });
     }
   }

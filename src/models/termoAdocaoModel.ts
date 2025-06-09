@@ -258,13 +258,13 @@ export class TermoAdocao extends Model {
   @BelongsTo(() => Cidade, { foreignKey: 'doador_cidade_id' })
   cidadeDoador?: Cidade;
 
-  // Relacionamentos para localização do adotante  
+  // Relacionamentos para localização do adotante
   @BelongsTo(() => Estado, { foreignKey: 'adotante_estado_id' })
   estadoAdotante?: Estado;
 
   @BelongsTo(() => Cidade, { foreignKey: 'adotante_cidade_id' })
   cidadeAdotante?: Cidade;
-  
+
   @BelongsTo(() => Especie, { foreignKey: 'pet_especie_id' })
   especiePet?: Especie;
 
@@ -435,19 +435,20 @@ export class TermoAdocao extends Model {
   /**
    * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS COMPLETOS
    */
-  static async atualizarComNovoNome(termoId: number, data: {
-    adotante_id: number;
-    adotante_nome: string;
-    adotante_email: string;
-    adotante_telefone?: string;
-    adotante_cpf?: string;
-    adotante_cidade_id?: number;
-    adotante_estado_id?: number;
-    assinatura_digital: string;
-    observacoes?: string;
-  }): Promise<TermoAdocao> {
-    console.log('🔄 Atualizando termo de compromisso existente:', { termoId, novoNome: data.adotante_nome });
-
+  static async atualizarComNovoNome(
+    termoId: number,
+    data: {
+      adotante_id: number;
+      adotante_nome: string;
+      adotante_email: string;
+      adotante_telefone?: string;
+      adotante_cpf?: string;
+      adotante_cidade_id?: number;
+      adotante_estado_id?: number;
+      assinatura_digital: string;
+      observacoes?: string;
+    }
+  ): Promise<TermoAdocao> {
     // Buscar termo existente
     const termo = await this.findByPk(termoId);
     if (!termo) {
@@ -491,13 +492,6 @@ export class TermoAdocao extends Model {
       // Hash será recalculado automaticamente pelo hook @BeforeSave
     });
 
-    console.log('✅ Termo de compromisso atualizado com sucesso:', { 
-      termoId: termoAtualizado.id, 
-      novoNome: termoAtualizado.adotante_nome,
-      localizacaoAdotante: termoAtualizado.getLocalizacaoAdotante(),
-      novaDataAssinatura: termoAtualizado.data_assinatura
-    });
-
     return termoAtualizado;
   }
 
@@ -528,14 +522,18 @@ export class TermoAdocao extends Model {
   /**
    * Verificar se nome do adotante mudou e precisa atualizar termo
    */
-  static async precisaAtualizarPorNome(petId: number, usuarioId: number, nomeAtualUsuario: string): Promise<{
+  static async precisaAtualizarPorNome(
+    petId: number,
+    usuarioId: number,
+    nomeAtualUsuario: string
+  ): Promise<{
     precisaAtualizar: boolean;
     termo?: TermoAdocao;
     nomeNoTermo?: string;
   }> {
     try {
       const termo = await this.findByPet(petId);
-      
+
       if (!termo || termo.adotante_id !== usuarioId) {
         return { precisaAtualizar: false };
       }
@@ -543,23 +541,12 @@ export class TermoAdocao extends Model {
       const nomeNoTermo = termo.adotante_nome || '';
       const nomesIguais = nomeAtualUsuario.trim() === nomeNoTermo.trim();
 
-      console.log('🔍 Verificando necessidade de atualização por nome (termo compromisso):', {
-        petId,
-        usuarioId,
-        nomeAtual: nomeAtualUsuario,
-        nomeNoTermo,
-        nomesIguais,
-        precisaAtualizar: !nomesIguais
-      });
-
       return {
         precisaAtualizar: !nomesIguais,
         termo,
         nomeNoTermo,
       };
-
     } catch (error) {
-      console.error('❌ Erro ao verificar necessidade de atualização:', error);
       return { precisaAtualizar: false };
     }
   }
@@ -601,9 +588,9 @@ export class TermoAdocao extends Model {
    */
   static async findByPetAndAdotante(petId: number, usuarioId: number): Promise<TermoAdocao | null> {
     return await this.findOne({
-      where: { 
+      where: {
         pet_id: petId,
-        adotante_id: usuarioId 
+        adotante_id: usuarioId,
       },
       include: [
         { model: Pet, as: 'pet' },

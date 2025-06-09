@@ -38,7 +38,6 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
     }
 
     if (!jwtSecret) {
-      console.error('⚠️  JWT_SECRET não está definido');
       res.status(500).json({
         error: 'Configuração do servidor inválida',
       });
@@ -63,8 +62,6 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
 
     next();
   } catch (error: any) {
-    console.error('❌ Erro na autenticação:', error.message);
-
     if (error.name === 'JsonWebTokenError') {
       res.status(401).json({
         error: 'Token inválido',

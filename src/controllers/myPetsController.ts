@@ -65,7 +65,6 @@ export class MyPetsController {
 
       res.status(201).json({ message: 'Associação criada com sucesso' });
     } catch (error) {
-      console.error('Erro ao criar associação de pet com usuário:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
@@ -116,7 +115,6 @@ export class MyPetsController {
         novo_status: 2,
       });
     } catch (error) {
-      console.error('Erro ao remover associação de pet:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
@@ -150,13 +148,11 @@ export class MyPetsController {
             const pet = await Pet.findByPk(associacao.pet_id);
 
             if (!pet) {
-              console.warn(`Pet com ID ${associacao.pet_id} não encontrado`);
               return null;
             }
 
             return pet;
           } catch (error) {
-            console.error(`Erro ao buscar pet ID ${associacao.pet_id}:`, error);
             return null;
           }
         })
@@ -170,7 +166,6 @@ export class MyPetsController {
         data: petsValidos,
       });
     } catch (error) {
-      console.error('Erro ao buscar associações de pets por usuário:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }

@@ -47,7 +47,7 @@ export class UsuarioController {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -56,7 +56,6 @@ export class UsuarioController {
       const usuarios = await Usuario.findAll();
       res.json(usuarios);
     } catch (error) {
-      console.error('Erro ao listar usuários:', error);
       res.status(500).json({ error: 'Erro ao listar usuários.' });
     }
   }
@@ -105,7 +104,6 @@ export class UsuarioController {
         message: 'Dados disponíveis para cadastro',
       });
     } catch (error) {
-      console.error('Erro ao verificar duplicação:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
@@ -150,7 +148,6 @@ export class UsuarioController {
         formatted: formatted,
       };
     } catch (error) {
-      console.error('Erro na validação do telefone:', error);
       return {
         isValid: false,
         error: 'Erro ao validar telefone',
@@ -166,7 +163,6 @@ export class UsuarioController {
       }
       res.json(usuario);
     } catch (error) {
-      console.error('Erro ao buscar usuário:', error);
       res.status(500).json({ error: 'Erro ao buscar usuário.' });
     }
   }
@@ -182,8 +178,6 @@ export class UsuarioController {
         return;
       }
 
-      console.log('Buscando usuário pelo email:', email);
-
       const usuario = await Usuario.findOne({
         where: {
           email: email,
@@ -197,7 +191,6 @@ export class UsuarioController {
 
       res.json(usuario);
     } catch (error) {
-      console.error('Erro ao buscar usuário:', error);
       res.status(500).json({
         error: 'Erro ao buscar usuário.',
         details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
@@ -256,7 +249,7 @@ export class UsuarioController {
         return res.status(400).json({
           error: 'Senha inválida',
           message: validacaoSenha.errors.join(', '),
-          passwordErrors: validacaoSenha.errors
+          passwordErrors: validacaoSenha.errors,
         });
       }
 
@@ -298,9 +291,6 @@ export class UsuarioController {
 
       if (req.file) {
         try {
-          console.log('Arquivo presente, tamanho:', req.file.size);
-          console.log('Tipo de arquivo:', req.file.mimetype);
-
           const fileBuffer = req.file.buffer;
 
           // Criar um nome de arquivo único baseado no nome do usuário e timestamp
@@ -310,17 +300,12 @@ export class UsuarioController {
           });
 
           if (error) {
-            console.error('Erro ao fazer upload da imagem no Supabase:', error);
           } else if (data?.path) {
             const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
             fotoUrl = publicData?.publicUrl ?? null;
-            console.log('URL da imagem gerada:', fotoUrl);
           }
-        } catch (fileError) {
-          console.error('Erro ao processar o arquivo:', fileError);
-        }
+        } catch (fileError) {}
       } else {
-        console.log('Nenhum arquivo foi enviado');
       }
 
       // Criar o usuário com a foto (se houver)
@@ -343,8 +328,6 @@ export class UsuarioController {
         fotoUrl,
       });
     } catch (error) {
-      console.error('Erro ao criar usuário:', error);
-
       if (error instanceof UniqueConstraintError) {
         // Identificar qual campo específico está duplicado
         const duplicatedField = error.errors?.[0]?.path;
@@ -403,9 +386,7 @@ export class UsuarioController {
                 specificMessage = `Os seguintes campos já estão cadastrados: ${duplicateFields.join(', ')}`;
                 fieldName = duplicateFields[0]; // Para compatibilidade
               }
-            } catch (checkError) {
-              console.error('Erro ao verificar duplicação manual:', checkError);
-            }
+            } catch (checkError) {}
             break;
         }
 
@@ -494,7 +475,6 @@ export class UsuarioController {
         message: 'Dados disponíveis para atualização',
       });
     } catch (error) {
-      console.error('Erro ao verificar duplicação para edição:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
@@ -559,17 +539,6 @@ export class UsuarioController {
       }
 
       // Debug: Mostrar valores recebidos
-      console.log('Valores recebidos do cliente:', {
-        nome,
-        sexo_id,
-        telefone,
-        email,
-        senha: senha ? '[SENHA RECEBIDA]' : '[SEM SENHA]',
-        cpf: cpfInput,
-        cep,
-        estado_id: estado_id || 'não informado',
-        cidade_id: cidade_id || 'não informado',
-      });
 
       // Inicializar dados atualizados
       const dadosAtualizados: any = {
@@ -592,16 +561,14 @@ export class UsuarioController {
           res.status(400).json({
             error: 'Senha inválida',
             message: validacaoSenha.errors.join(', '),
-            passwordErrors: validacaoSenha.errors
+            passwordErrors: validacaoSenha.errors,
           });
           return;
         }
 
         const saltRounds = 10;
         dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
-        console.log('Nova senha recebida e criptografada manualmente');
       } else {
-        console.log('Senha não informada, mantendo a atual');
         delete dadosAtualizados.senha;
       }
 
@@ -636,8 +603,6 @@ export class UsuarioController {
         fotoUrl,
       });
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
-
       if (error instanceof UniqueConstraintError) {
         // Identificar qual campo específico está duplicado
         const duplicatedField = error.errors?.[0]?.path;
@@ -685,16 +650,12 @@ export class UsuarioController {
     try {
       const id = Number(req.params.id);
 
-      console.log(`🗑️ Iniciando exclusão da conta do usuário ${id}...`);
-
       const usuario = await Usuario.findByPk(id);
 
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado' });
         return;
       }
-
-      console.log(`👤 Usuário encontrado: ${usuario.nome} (${usuario.email})`);
 
       // 🐾 Verificar se o usuário tem pets vinculados
       const petCount = await Pet.count({
@@ -703,11 +664,7 @@ export class UsuarioController {
         },
       });
 
-      console.log(`📊 Usuário possui ${petCount} pets cadastrados`);
-
       if (petCount > 0) {
-        console.log(`❌ Exclusão bloqueada: usuário possui ${petCount} pets`);
-
         res.status(400).json({
           title: 'Erro ao Excluir Conta',
           error: 'Não é possível excluir a conta',
@@ -732,27 +689,15 @@ export class UsuarioController {
             dataAssinatura: termo.data_assinatura,
           };
 
-          console.log(`📋 Termo de doação encontrado (ID: ${termo.id}), será excluído junto com a conta`);
-
           // 🗑️ Excluir termo de doação ANTES do usuário
           await TermoDoacao.destroy({
             where: { id: termo.id },
           });
-
-          console.log(`✅ Termo de doação ${termo.id} excluído com sucesso`);
-        } else {
-          console.log(`ℹ️ Usuário não possui termo de doação`);
         }
-      } catch (termoError) {
-        console.error('❌ Erro ao processar termo de doação:', termoError);
-        // Não bloquear a exclusão da conta se houver erro com o termo
-        console.log('⚠️ Continuando com exclusão da conta mesmo com erro no termo');
-      }
+      } catch (termoError) {}
 
       // 🗑️ Excluir o usuário
       await usuario.destroy();
-
-      console.log(`✅ Usuário ${usuario.nome} (ID: ${id}) excluído com sucesso`);
 
       // 📧 Resposta de sucesso com informações detalhadas
       res.status(200).json({
@@ -769,12 +714,7 @@ export class UsuarioController {
         },
       });
     } catch (error) {
-      console.error('❌ Erro ao deletar usuário:', error);
-
       if (error instanceof DatabaseError) {
-        // Caso exista algum constraint que impede a exclusão
-        console.log('❌ Erro de constraint no banco de dados');
-
         res.status(400).json({
           title: 'Erro ao Excluir Conta',
           error: 'Não foi possível excluir',
@@ -784,7 +724,6 @@ export class UsuarioController {
         });
       } else {
         // Outros erros
-        console.log('❌ Erro interno do servidor');
 
         res.status(500).json({
           title: 'Erro Interno',
@@ -805,8 +744,6 @@ export class UsuarioController {
         res.status(400).json({ error: 'ID de usuário inválido' });
         return;
       }
-
-      console.log(`🔍 Verificando se usuário ${id} pode excluir conta...`);
 
       // Verificar se o usuário existe
       const usuario = await Usuario.findByPk(id);
@@ -833,17 +770,9 @@ export class UsuarioController {
             motivoDoacao: termo.motivo_doacao,
           };
         }
-      } catch (error) {
-        console.log('Usuário não possui termo de doação');
-      }
+      } catch (error) {}
 
       const podeExcluir = petCount === 0;
-
-      console.log(`📊 Resultado da verificação:`, {
-        podeExcluir,
-        petCount,
-        temTermo,
-      });
 
       res.json({
         message: 'Verificação concluída',
@@ -861,7 +790,6 @@ export class UsuarioController {
         },
       });
     } catch (error: any) {
-      console.error('❌ Erro ao verificar se pode excluir conta:', error);
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error.message,
@@ -952,7 +880,6 @@ export class UsuarioController {
         usuarioId: usuario.id,
       });
     } catch (error) {
-      console.error('Erro ao enviar código de recuperação:', error);
       res.status(500).json({
         error: 'Erro ao enviar código de recuperação.',
         details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
@@ -996,7 +923,6 @@ export class UsuarioController {
         usuarioId: recuperacao.usuario_id,
       });
     } catch (error) {
-      console.error('Erro ao verificar código:', error);
       res.status(500).json({
         error: 'Erro ao verificar código.',
         details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,

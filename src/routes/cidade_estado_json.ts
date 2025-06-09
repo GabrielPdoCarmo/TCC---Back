@@ -37,7 +37,6 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(resultado);
   } catch (error) {
-    console.error('Erro ao gerar JSON para o frontend:', error);
     res.status(500).json({ error: 'Erro ao gerar JSON.' });
   }
 });
