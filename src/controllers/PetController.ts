@@ -112,7 +112,7 @@ export class PetController {
       // Se não encontrou nenhum pet
       if (pets.length === 0) {
         res.status(404).json({
-          error: 'Nenhum pet encontrado com este nome, status válido (3 ou 4) e que pertença ao usuário.'
+          error: 'Nenhum pet encontrado com este nome, status válido (3 ou 4) e que pertença ao usuário.',
         });
         return;
       }
@@ -498,7 +498,6 @@ export class PetController {
       // Retornar pet criado com status HTTP 201
       res.status(201).json(novoPet);
     } catch (error) {
-      console.error('Erro completo:', error);
       next(error); // Delegação para middleware de tratamento de erros
       return;
     }
@@ -704,8 +703,8 @@ export class PetController {
           ? fotoUrl.includes('supabase')
             ? 'supabase'
             : fotoUrl.startsWith('file:///')
-              ? 'arquivo_local'
-              : 'outro'
+            ? 'arquivo_local'
+            : 'outro'
           : 'sem_imagem',
         imagemDeletada: imagemDeletada,
       });
