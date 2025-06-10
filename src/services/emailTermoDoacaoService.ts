@@ -26,7 +26,7 @@ export class EmailTermoDoacaoService {
       port: parseInt(process.env.EMAIL_PORT || '587'),
       secure: process.env.EMAIL_SECURE === 'true',
       auth: {
-        user: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+        user: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         pass: process.env.EMAIL_PASS || 'viwwohabadqfthjb',
       },
     };
@@ -90,8 +90,8 @@ export class EmailTermoDoacaoService {
       // Configurar email
       const mailOptions = {
         from: {
-          name: 'Pets_Up - Adoção de Pets',
-          address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+          name: 'Petz_Up - Adoção de Pets',
+          address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         },
         to: termo.doador_email,
         subject: `Termo de Responsabilidade de Doação - ${termo.doador_nome}`,
@@ -299,7 +299,7 @@ export class EmailTermoDoacaoService {
 
     // Rodapé - Posição relativa ao conteúdo em vez de absoluta
     doc.fontSize(8).font('Helvetica').text(
-      'Documento gerado automaticamente pelo Pets_Up - Sistema de Adoção de Pets',
+      'Documento gerado automaticamente pelo Petz_Up - Sistema de Adoção de Pets',
       50,
       yPosition, // Usar yPosition em vez de doc.page.height - 30
       { width: 500, align: 'center' }
@@ -424,11 +424,11 @@ export class EmailTermoDoacaoService {
             <p>Obrigado por contribuir para a <span class="highlight">adoção responsável</span> de pets! 💚</p>
             
             <p>Com carinho,<br>
-            <strong>Equipe Pets_Up</strong></p>
+            <strong>Equipe Petz_Up</strong></p>
           </div>
           
           <div class="footer">
-            <p>Este email foi enviado automaticamente pelo sistema Pets_Up</p>
+            <p>Este email foi enviado automaticamente pelo sistema Petz_Up</p>
             <p>Hash de verificação: ${termo.hash_documento}</p>
             <p>Para validar este documento, acesse: [URL_DO_SISTEMA]/termos-doacao/${termo.id}/validate</p>
           </div>
@@ -447,8 +447,8 @@ export class EmailTermoDoacaoService {
 
       const mailOptions = {
         from: {
-          name: 'Pets_Up - Adoção de Pets',
-          address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+          name: 'Petz_Up - Adoção de Pets',
+          address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         },
         to: termo.doador_email,
         subject: `Confirmação - Termo de Doação Assinado`,
@@ -502,7 +502,7 @@ export class EmailTermoDoacaoService {
             
             <p>Obrigado por fazer parte da nossa comunidade!</p>
             
-            <p><strong>Equipe Pets_Up</strong></p>
+            <p><strong>Equipe Petz_Up</strong></p>
           </div>
         </div>
       </body>
@@ -519,8 +519,8 @@ export class EmailTermoDoacaoService {
     try {
       const mailOptions = {
         from: {
-          name: 'Pets_Up - Adoção de Pets',
-          address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+          name: 'Petz_Up - Adoção de Pets',
+          address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         },
         to: destinatario,
         subject: assunto,

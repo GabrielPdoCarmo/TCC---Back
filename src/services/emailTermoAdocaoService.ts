@@ -26,7 +26,7 @@ export class EmailService {
       port: parseInt(process.env.EMAIL_PORT || '587'),
       secure: process.env.EMAIL_SECURE === 'true', // false para 587, true para 465
       auth: {
-        user: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+        user: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         pass: process.env.EMAIL_PASS || 'viwwohabadqfthjb',
       },
     };
@@ -107,8 +107,8 @@ export class EmailService {
   private async enviarEmailParaDoador(termo: TermoAdocao, pdfBuffer: Buffer, logoBuffer: Buffer): Promise<void> {
     const mailOptions = {
       from: {
-        name: 'Pets_Up - Adoção de Pets',
-        address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+        name: 'Petz_Up - Adoção de Pets',
+        address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
       },
       to: termo.doador_email,
       subject: `🎉 ${termo.pet_nome} Foi Adotado! - Termo de Compromisso`,
@@ -137,8 +137,8 @@ export class EmailService {
   private async enviarEmailParaAdotante(termo: TermoAdocao, pdfBuffer: Buffer, logoBuffer: Buffer): Promise<void> {
     const mailOptions = {
       from: {
-        name: 'Pets_Up - Adoção de Pets',
-        address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+        name: 'Petz_Up - Adoção de Pets',
+        address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
       },
       to: termo.adotante_email,
       subject: `🐾 Termo de Compromisso - Adoção de ${termo.pet_nome}`,
@@ -264,11 +264,11 @@ export class EmailService {
             <p>Se precisar de qualquer esclarecimento, estamos à disposição.</p>
             
             <p>Com gratidão,<br>
-            <strong>Equipe Pets_Up</strong> 💙</p>
+            <strong>Equipe Petz_Up</strong> 💙</p>
           </div>
           
           <div class="footer">
-            <p>Este email foi enviado automaticamente pelo sistema Pets_Up</p>
+            <p>Este email foi enviado automaticamente pelo sistema Petz_Up</p>
             <p>Hash do documento: ${termo.hash_documento}</p>
           </div>
         </div>
@@ -382,11 +382,11 @@ export class EmailService {
             <p>Desejamos uma vida longa e feliz para vocês dois! 🌟</p>
             
             <p>Com carinho,<br>
-            <strong>Equipe Pets_Up</strong></p>
+            <strong>Equipe Petz_Up</strong></p>
           </div>
           
           <div class="footer">
-            <p>Este email foi enviado automaticamente pelo sistema Pets_Up</p>
+            <p>Este email foi enviado automaticamente pelo sistema Petz_Up</p>
             <p>Hash do documento: ${termo.hash_documento}</p>
           </div>
         </div>
@@ -583,7 +583,7 @@ export class EmailService {
     doc
       .fontSize(8)
       .font('Helvetica')
-      .text('Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets', 50, yPosition, {
+      .text('Este documento foi gerado digitalmente pelo Petz_Up - Plataforma de Adoção de Pets', 50, yPosition, {
         width: 500,
         align: 'center',
       });
@@ -601,8 +601,8 @@ export class EmailService {
     try {
       const mailOptions = {
         from: {
-          name: 'Pets_Up - Adoção de Pets',
-          address: process.env.EMAIL_USER || 'petsup2005@gmail.com',
+          name: 'Petz_Up - Adoção de Pets',
+          address: process.env.EMAIL_USER || 'petzup2005@gmail.com',
         },
         to: destinatario,
         subject: assunto,

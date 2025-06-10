@@ -853,19 +853,19 @@ export class UsuarioController {
 
       // Configurar o email
       const mailOptions = {
-        from: `"Pets_Up" <${process.env.EMAIL_USER}>`,
+        from: `"Petz_Up" <${process.env.EMAIL_USER}>`,
         to: usuario.email,
-        subject: 'Código de Recuperação de Senha - Pets_Up',
+        subject: 'Código de Recuperação de Senha - Petz_Up',
         html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <h2>Recuperação de Senha</h2>
           <p>Olá ${usuario.nome},</p>
-          <p>Você solicitou a recuperação de senha para sua conta Pets_Up.</p>
+          <p>Você solicitou a recuperação de senha para sua conta Petz_Up.</p>
           <p>Seu código de verificação é:</p>
           <h1 style="font-size: 36px; text-align: center; letter-spacing: 5px; margin: 20px 0; padding: 10px; background-color: #f5f5f5; border-radius: 4px;">${codigo}</h1>
           <p>Este código é válido por 4 minutos.</p>
           <p>Se você não solicitou esta recuperação de senha, por favor ignore este e-mail.</p>
-          <p>Atenciosamente,<br>Equipe Pets_Up</p>
+          <p>Atenciosamente,<br>Equipe Petz_Up</p>
         </div>
       `,
       };
