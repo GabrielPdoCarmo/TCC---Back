@@ -538,8 +538,6 @@ export class UsuarioController {
         telefone = validacaoTelefone.formatted;
       }
 
-      // Debug: Mostrar valores recebidos
-
       // Inicializar dados atualizados
       const dadosAtualizados: any = {
         nome,
@@ -550,7 +548,6 @@ export class UsuarioController {
         cep: cep !== undefined && cep !== null ? cep : usuario.cep,
         estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
         cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
-        foto: bodyFoto,
       };
 
       // Criptografar a senha se foi fornecida
@@ -572,22 +569,45 @@ export class UsuarioController {
         delete dadosAtualizados.senha;
       }
 
-      // Inicializar a URL da foto com a existente ou a do body
-      let fotoUrl = bodyFoto || usuario.foto;
+      // ✅ PROCESSAMENTO DA NOVA IMAGEM - ADICIONADO
+      let fotoUrl = usuario.foto; // Manter a foto atual por padrão
+
+      // Se uma nova imagem foi enviada como arquivo
+      if (req.file) {
+        try {
+          const fileBuffer = req.file.buffer;
+
+          // Criar um nome de arquivo único baseado no nome do usuário e timestamp
+          const filePath = `usuarios/${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
+
+          const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
+            contentType: req.file.mimetype,
+            upsert: true, // Permite sobrescrever se o arquivo já existir
+          });
+
+          if (error) {
+            // Não falhar a atualização por causa da imagem, apenas manter a anterior
+          } else if (data?.path) {
+            const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
+
+            fotoUrl = publicData?.publicUrl ?? usuario.foto;
+          }
+        } catch (fileError) {
+          // Manter a foto anterior se houve erro
+        }
+      }
+      // Se não há arquivo mas há uma URL no body (foto existente ou removida)
+      else if (bodyFoto !== undefined) {
+        fotoUrl = bodyFoto;
+      }
+
+      // Adicionar a foto aos dados atualizados
       dadosAtualizados.foto = fotoUrl;
 
       // ATUALIZAÇÃO COM HOOKS ATIVADOS
-      await usuario.update(
-        {
-          ...dadosAtualizados,
-          estado_id: Number(estado_id) || usuario.estado_id,
-          cidade_id: Number(cidade_id) || usuario.cidade_id,
-          cep: cep !== undefined && cep !== null ? cep : usuario.cep,
-        },
-        {
-          hooks: true,
-        }
-      );
+      await usuario.update(dadosAtualizados, {
+        hooks: true,
+      });
 
       // Recarregar o usuário para garantir que temos os dados corretos
       const usuarioAtualizado = await Usuario.findByPk(id);

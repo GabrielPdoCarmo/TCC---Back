@@ -487,58 +487,30 @@ export class PetController {
         return;
       }
 
+      // Sanitizar rg_Pet se necessário
       if ('rg_Pet' in dadosAtualizados) {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
       }
 
-      if ('rg_Pet' in dadosAtualizados) {
-        dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
-      }
+      // ✅ PROCESSAMENTO APRIMORADO DA FOTO
+      let fotoUrl = pet.foto; // Manter a foto atual por padrão
 
-      // Verificar se tem um arquivo de imagem
-      let fotoUrl = dadosAtualizados.foto || pet.foto; // Mantém a foto atual se não for enviada nova
-
-      // Verificar se a URL da foto é local (começa com file:///)
-      const isLocalImage = typeof fotoUrl === 'string' && fotoUrl.startsWith('file:///');
-
-      // Se for uma URL local, precisamos fazer upload para o Supabase
-      if (isLocalImage && !req.file) {
-        // Duas opções aqui:
-        // 1. Manter a URL anterior do Supabase (se existir)
-        // 2. Informar erro ao cliente
-
-        // Opção 1: Manter a URL anterior
-        if (pet.foto && pet.foto.includes('supabase')) {
-          fotoUrl = pet.foto;
-        } else {
-          // Opção 2: Informar erro
-          res.status(400).json({
-            error:
-              'A URL da imagem é um caminho local e não pode ser usada no servidor. Por favor, envie o arquivo novamente.',
-          });
-          return;
-        }
-      }
-
-      // Se tiver arquivo de upload, processar normalmente
+      // ✅ CASO 1: Nova imagem enviada como arquivo (FormData)
       if (req.file) {
         try {
-          // Se o pet já tiver uma foto e estamos fazendo upload de uma nova,
-          // devemos deletar a antiga do Supabase APENAS se for uma URL do Supabase
-          const petFoto = pet.foto;
-          if (petFoto && petFoto.includes('supabase')) {
-            const urlParts = petFoto.split('pet-images/');
+          // Deletar foto anterior se existir
+          if (pet.foto && pet.foto.includes('supabase')) {
+            const urlParts = pet.foto.split('pet-images/');
             if (urlParts.length > 1) {
-              const filePath = urlParts[1].split('?')[0]; // Extrair caminho correto
-
+              const filePath = urlParts[1].split('?')[0];
               const { error: deleteError } = await supabase.storage.from('pet-images').remove([filePath]);
+              if (!deleteError) {
+              }
             }
           }
 
-          // Usar o nome atualizado do pet se disponível
+          // Upload da nova foto
           const nomePet = dadosAtualizados.nome || pet.nome;
-
-          // Fazer upload da nova imagem
           const fileBuffer = req.file.buffer;
           const filePath = `pets/${nomePet.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
@@ -547,23 +519,77 @@ export class PetController {
           });
 
           if (error) {
+            fotoUrl = pet.foto; // Manter foto anterior
           } else if (data?.path) {
             const { data: publicData } = supabase.storage.from('pet-images').getPublicUrl(data.path);
-            fotoUrl = publicData?.publicUrl ?? null;
+            fotoUrl = publicData?.publicUrl ?? pet.foto;
           }
-        } catch (fileError) {}
+        } catch (fileError) {
+          fotoUrl = pet.foto; // Manter foto anterior
+        }
+      }
+      // ✅ CASO 2: Foto enviada via JSON (URL existente ou remoção)
+      else if ('foto' in dadosAtualizados) {
+        if (dadosAtualizados.foto === '' || dadosAtualizados.foto === null) {
+          // Remover foto
+
+          // Deletar do Supabase se for uma URL válida
+          if (pet.foto && pet.foto.includes('supabase')) {
+            try {
+              const urlParts = pet.foto.split('pet-images/');
+              if (urlParts.length > 1) {
+                const filePath = urlParts[1].split('?')[0];
+                const { error: deleteError } = await supabase.storage.from('pet-images').remove([filePath]);
+                if (!deleteError) {
+                }
+              }
+            } catch (deleteError) {}
+          }
+
+          fotoUrl = ''; // String vazia para remoção
+        } else if (typeof dadosAtualizados.foto === 'string' && dadosAtualizados.foto.startsWith('http')) {
+          // Foto existente (URL válida) - manter
+
+          fotoUrl = dadosAtualizados.foto;
+        } else {
+          fotoUrl = pet.foto;
+        }
+      }
+      // ✅ CASO 3: Nenhuma informação sobre foto - manter atual
+      else {
+        fotoUrl = pet.foto;
       }
 
-      // Adicionar a URL da foto aos dados atualizados
+      // Atualizar dados do pet
       dadosAtualizados.foto = fotoUrl;
 
-      // ✅ ATUALIZAR COM DADOS SANITIZADOS
+      // ✅ ATUALIZAR PET NO BANCO
       await pet.update(dadosAtualizados);
 
-      // Resto do código permanece o mesmo...
-      // Processamento de doenças/deficiências...
+      // ✅ PROCESSAR DOENÇAS/DEFICIÊNCIAS
+      if (doencas && Array.isArray(doencas)) {
+        // Remover associações existentes
+        await PetDoencaDeficiencia.destroy({
+          where: { pet_id: id },
+        });
 
-      // Buscar o pet atualizado com suas relações para retornar na resposta
+        // Criar novas associações
+        await Promise.all(
+          doencas.map(async (nome: string) => {
+            const [doenca] = await DoencasDeficiencias.findOrCreate({
+              where: { nome },
+            });
+
+            await PetDoencaDeficiencia.create({
+              pet_id: parseInt(id),
+              doencaDeficiencia_id: doenca.id,
+              possui: true,
+            });
+          })
+        );
+      }
+
+      // ✅ BUSCAR PET ATUALIZADO PARA RESPOSTA
       const petAtualizado = await Pet.findByPk(id, {
         include: [
           {
@@ -576,10 +602,21 @@ export class PetController {
 
       res.json(petAtualizado);
     } catch (error) {
-      res.status(500).json({ error: 'Erro ao atualizar o pet.' });
+      // ✅ TRATAMENTO DE ERRO APRIMORADO
+      if (error instanceof Error) {
+        res.status(500).json({
+          error: 'Erro ao atualizar o pet.',
+          message: error.message,
+          details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+        });
+      } else {
+        res.status(500).json({
+          error: 'Erro desconhecido ao atualizar o pet.',
+          details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+        });
+      }
     }
   };
-
   static delete: RequestHandler = async (req, res, next) => {
     try {
       const { id } = req.params;
