@@ -7,16 +7,83 @@ import { Cidade } from '../models/cidadeModel';
 import { TermoDoacao } from '../models/termoDoacaoModel';
 import bcrypt from 'bcrypt';
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
-import { supabase } from '../api/supabaseClient'; // certifique-se que esse client esteja criado corretamente
-const saltRounds = 10; // número de rounds de salt
+import { supabase } from '../api/supabaseClient';
+const saltRounds = 10;
 import { cpf } from 'cpf-cnpj-validator';
 import { Pet } from '../models/petModel';
 import { RecuperacaoSenha } from '../models/RecuperacaoSenhaModel';
 import nodemailer from 'nodemailer';
 import { Op } from 'sequelize';
+import validator from 'validator';
 
 export class UsuarioController {
-  // NOVA FUNÇÃO: Validação granular de senha
+  // NOVA FUNÇÃO: Validação granular de email usando validator.js
+  private static validarEmail(email: string): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!email) {
+      errors.push('O e-mail é obrigatório');
+      return { isValid: false, errors };
+    }
+
+    // Usar validator.js para validação principal
+    if (!validator.isEmail(email)) {
+      errors.push('Formato de e-mail inválido');
+    }
+
+    // Validar tamanho usando validator
+    if (!validator.isLength(email, { min: 3, max: 254 })) {
+      if (email.length < 3) {
+        errors.push('O e-mail é muito curto (mínimo 3 caracteres)');
+      } else {
+        errors.push('O e-mail é muito longo (máximo 254 caracteres)');
+      }
+    }
+
+    // Verificar se não tem espaços
+    if (email.includes(' ')) {
+      errors.push('E-mail não pode conter espaços');
+    }
+
+    // Verificações específicas de domínio
+    if (email.includes('@')) {
+      const [localPart, domain] = email.split('@');
+
+      // Verificar parte local
+      if (localPart.length > 64) {
+        errors.push('Parte local do e-mail é muito longa (máximo 64 caracteres)');
+      }
+
+      // Verificar domínio usando validator
+      if (domain.length > 253) {
+        errors.push('Domínio do e-mail é muito longo (máximo 253 caracteres)');
+      }
+
+      // Verificar se é um FQDN válido
+      if (!validator.isFQDN(domain)) {
+        errors.push('Domínio inválido');
+      }
+
+      // Verificar se não tem partes vazias no domínio
+      const domainParts = domain.split('.');
+      if (domainParts.some(part => part.length === 0)) {
+        errors.push('Domínio não pode ter partes vazias');
+      }
+
+      // Verificar TLD
+      const tld = domainParts[domainParts.length - 1];
+      if (tld && tld.length < 2) {
+        errors.push('Extensão do domínio deve ter pelo menos 2 caracteres');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  // FUNÇÃO EXISTENTE: Validação granular de senha
   private static validarSenha(senha: string): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
@@ -25,22 +92,18 @@ export class UsuarioController {
       return { isValid: false, errors };
     }
 
-    // Verificar se a senha tem pelo menos 8 caracteres
     if (senha.length < 8) {
       errors.push('A senha deve ter pelo menos 8 caracteres');
     }
 
-    // Verificar se tem pelo menos uma letra minúscula
     if (!/[a-z]/.test(senha)) {
       errors.push('A senha deve possuir letras minúsculas');
     }
 
-    // Verificar se tem pelo menos uma letra maiúscula
     if (!/[A-Z]/.test(senha)) {
       errors.push('A senha deve possuir letras maiúsculas');
     }
 
-    // Verificar se tem pelo menos um caractere especial
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(senha)) {
       errors.push('A senha deve possuir caracteres especiais');
     }
@@ -51,6 +114,85 @@ export class UsuarioController {
     };
   }
 
+  // 🆕 NOVA FUNÇÃO: Extrair caminho do arquivo da URL do Supabase
+  private static extrairCaminhoSupabase(url: string): string | null {
+    try {
+      if (!url) return null;
+
+      // Padrão: https://[PROJECT_ID].supabase.co/storage/v1/object/public/user-images/[CAMINHO]
+      const match = url.match(/\/user-images\/(.+)$/);
+      return match ? match[1] : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // 🆕 NOVA FUNÇÃO: Deletar imagem do Supabase
+  private static async deletarImagemSupabase(imagemUrl: string): Promise<boolean> {
+    try {
+      if (!imagemUrl) return true;
+
+      const caminho = UsuarioController.extrairCaminhoSupabase(imagemUrl);
+      if (!caminho) return true;
+
+      const { error } = await supabase.storage
+        .from('user-images')
+        .remove([caminho]);
+
+      if (error) {
+        console.error('Erro ao deletar imagem do Supabase:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar imagem:', error);
+      return false;
+    }
+  }
+
+  // 🆕 NOVA FUNÇÃO: Upload de imagem para Supabase
+  private static async uploadImagemSupabase(
+    fileBuffer: Buffer,
+    fileName: string,
+    contentType: string,
+    imagemAnterior?: string | null
+  ): Promise<string | null> {
+    try {
+      // Deletar imagem anterior se existir
+      if (imagemAnterior) {
+        await UsuarioController.deletarImagemSupabase(imagemAnterior);
+      }
+
+      const filePath = `usuarios/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('user-images')
+        .upload(filePath, fileBuffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error('Erro no upload:', error);
+        return null;
+      }
+
+      if (!data?.path) {
+        return null;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from('user-images')
+        .getPublicUrl(data.path);
+
+      return publicData?.publicUrl ?? null;
+    } catch (error) {
+      console.error('Erro no upload da imagem:', error);
+      return null;
+    }
+  }
+
   static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuarios = await Usuario.findAll();
@@ -59,12 +201,12 @@ export class UsuarioController {
       res.status(500).json({ error: 'Erro ao listar usuários.' });
     }
   }
+
   static async checkDuplicateFields(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, cpf, telefone } = req.body;
       const duplicateFields: string[] = [];
 
-      // Verificar email duplicado
       if (email) {
         const existingEmail = await Usuario.findOne({ where: { email } });
         if (existingEmail) {
@@ -72,7 +214,6 @@ export class UsuarioController {
         }
       }
 
-      // Verificar CPF duplicado
       if (cpf) {
         const cpfNumerico = cpf.replace(/\D/g, '');
         const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
@@ -81,7 +222,6 @@ export class UsuarioController {
         }
       }
 
-      // Verificar telefone duplicado
       if (telefone) {
         const telefoneNumerico = telefone.replace(/\D/g, '');
         const existingTelefone = await Usuario.findOne({ where: { telefone: telefoneNumerico } });
@@ -107,12 +247,11 @@ export class UsuarioController {
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
+
   private static validarEFormatarTelefone(telefone: string): { isValid: boolean; formatted?: string; error?: string } {
     try {
-      // Remove caracteres não numéricos
       const telefoneNumerico = telefone.replace(/\D/g, '');
 
-      // Verifica se tem pelo menos 10 dígitos (telefone fixo) ou 11 (celular)
       if (telefoneNumerico.length < 10 || telefoneNumerico.length > 11) {
         return {
           isValid: false,
@@ -120,10 +259,8 @@ export class UsuarioController {
         };
       }
 
-      // Adiciona o código do país se não tiver
       const telefoneComCodigo = telefoneNumerico.startsWith('55') ? `+${telefoneNumerico}` : `+55${telefoneNumerico}`;
 
-      // Valida usando libphonenumber-js
       if (!isValidPhoneNumber(telefoneComCodigo, 'BR')) {
         return {
           isValid: false,
@@ -131,7 +268,6 @@ export class UsuarioController {
         };
       }
 
-      // Formata o telefone - USANDO parsePhoneNumberFromString
       const phoneNumber = parsePhoneNumberFromString(telefoneComCodigo, 'BR');
 
       if (!phoneNumber) {
@@ -141,7 +277,7 @@ export class UsuarioController {
         };
       }
 
-      const formatted = phoneNumber.format('NATIONAL'); // Formato nacional: (11) 99999-9999
+      const formatted = phoneNumber.format('NATIONAL');
 
       return {
         isValid: true,
@@ -154,6 +290,7 @@ export class UsuarioController {
       };
     }
   }
+
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const usuario = await Usuario.findByPk(Number(req.params.id));
@@ -169,10 +306,8 @@ export class UsuarioController {
 
   static async getByEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Mudança aqui - usar req.params.email em vez de req.query.email
       const email = req.params.email;
 
-      // Verificar se o email foi fornecido
       if (!email) {
         res.status(400).json({ error: 'E-mail não fornecido' });
         return;
@@ -202,12 +337,27 @@ export class UsuarioController {
     let { nome, sexo_id, telefone, email, senha, cpf: cpfInput, cep, estado_id, cidade_id } = req.body;
 
     try {
-      // Validação de CPF - adicionar aqui
+      // Validação de email
+      if (email) {
+        const validacaoEmail = UsuarioController.validarEmail(email);
+        if (!validacaoEmail.isValid) {
+          return res.status(400).json({
+            error: 'E-mail inválido',
+            message: validacaoEmail.errors.join(', '),
+            emailErrors: validacaoEmail.errors,
+          });
+        }
+      } else {
+        return res.status(400).json({
+          error: 'E-mail obrigatório',
+          message: 'O e-mail é obrigatório para cadastro.',
+        });
+      }
+
+      // Validação de CPF
       if (cpfInput) {
-        // Remove caracteres não numéricos
         const cpfNumerico = cpfInput.replace(/\D/g, '');
 
-        // Verifica se o CPF é válido
         if (!cpf.isValid(cpfNumerico)) {
           return res.status(400).json({
             error: 'CPF inválido',
@@ -215,7 +365,6 @@ export class UsuarioController {
           });
         }
 
-        // Formata o CPF antes de salvar (opcional)
         cpfInput = cpf.format(cpfNumerico);
       } else {
         return res.status(400).json({
@@ -224,6 +373,7 @@ export class UsuarioController {
         });
       }
 
+      // Validação de telefone
       if (telefone) {
         const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
 
@@ -234,7 +384,6 @@ export class UsuarioController {
           });
         }
 
-        // Usa o telefone formatado
         telefone = validacaoTelefone.formatted;
       } else {
         return res.status(400).json({
@@ -243,7 +392,7 @@ export class UsuarioController {
         });
       }
 
-      // NOVA VALIDAÇÃO: Usar a função de validação granular de senha
+      // Validação de senha
       const validacaoSenha = UsuarioController.validarSenha(senha);
       if (!validacaoSenha.isValid) {
         return res.status(400).json({
@@ -253,10 +402,9 @@ export class UsuarioController {
         });
       }
 
-      // Hash da senha antes de salvar
       const senhaHash = await bcrypt.hash(senha, saltRounds);
 
-      // Se cidade_id não for informado, buscar via CEP
+      // Buscar cidade via CEP se necessário
       if (!cidade_id && cep) {
         const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
         const endereco = response.data;
@@ -284,31 +432,21 @@ export class UsuarioController {
         cidade_id = cidade.id;
       }
 
-      cep = cep || null; // Se o CEP não for informado, atribui null
+      cep = cep || null;
 
-      // Processamento de imagem (similar ao criar do pet)
+      // 🔄 PROCESSAMENTO DE IMAGEM ATUALIZADO
       let fotoUrl = null;
 
       if (req.file) {
-        try {
-          const fileBuffer = req.file.buffer;
+        const fileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
-          // Criar um nome de arquivo único baseado no nome do usuário e timestamp
-          const filePath = `usuarios/${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
-          const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
-            contentType: req.file.mimetype,
-          });
-
-          if (error) {
-          } else if (data?.path) {
-            const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
-            fotoUrl = publicData?.publicUrl ?? null;
-          }
-        } catch (fileError) {}
-      } else {
+        fotoUrl = await UsuarioController.uploadImagemSupabase(
+          req.file.buffer,
+          fileName,
+          req.file.mimetype
+        );
       }
 
-      // Criar o usuário com a foto (se houver)
       const usuario = await Usuario.create({
         nome,
         sexo_id,
@@ -317,25 +455,22 @@ export class UsuarioController {
         senha: senhaHash,
         cpf: cpfInput,
         cep,
-        foto: fotoUrl, // Adiciona o caminho da foto
+        foto: fotoUrl,
         estado_id,
         cidade_id,
       });
 
-      // Retorna o usuário criado junto com a URL pública da foto (se houver)
       return res.status(201).json({
         ...usuario.toJSON(),
         fotoUrl,
       });
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
-        // Identificar qual campo específico está duplicado
         const duplicatedField = error.errors?.[0]?.path;
         const duplicateFields: string[] = [];
         let specificMessage = 'Email, CPF ou telefone já cadastrado no sistema.';
         let fieldName = '';
 
-        // Verificar qual campo está duplicado baseado no erro do Sequelize
         switch (duplicatedField) {
           case 'email':
             specificMessage = 'Este e-mail já está cadastrado no sistema.';
@@ -353,12 +488,10 @@ export class UsuarioController {
             duplicateFields.push('telefone');
             break;
           default:
-            // Caso não consiga identificar, tenta verificar manualmente
             try {
               const cpfNumerico = cpfInput?.replace(/\D/g, '');
               const telefoneNumerico = telefone?.replace(/\D/g, '');
 
-              // Verificar email
               if (email) {
                 const existingEmail = await Usuario.findOne({ where: { email } });
                 if (existingEmail) {
@@ -366,7 +499,6 @@ export class UsuarioController {
                 }
               }
 
-              // Verificar CPF
               if (cpfNumerico) {
                 const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
                 if (existingCpf) {
@@ -374,7 +506,6 @@ export class UsuarioController {
                 }
               }
 
-              // Verificar telefone
               if (telefoneNumerico) {
                 const existingTelefone = await Usuario.findOne({ where: { telefone: telefoneNumerico } });
                 if (existingTelefone) {
@@ -384,18 +515,18 @@ export class UsuarioController {
 
               if (duplicateFields.length > 0) {
                 specificMessage = `Os seguintes campos já estão cadastrados: ${duplicateFields.join(', ')}`;
-                fieldName = duplicateFields[0]; // Para compatibilidade
+                fieldName = duplicateFields[0];
               }
-            } catch (checkError) {}
+            } catch (checkError) { }
             break;
         }
 
         return res.status(400).json({
           error: 'Dados duplicados',
           message: specificMessage,
-          duplicateField: fieldName, // Campo específico para o frontend
-          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'], // Array para compatibilidade
-          exists: true, // Para compatibilidade com validarUsuario
+          duplicateField: fieldName,
+          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
+          exists: true,
         });
       } else if (error instanceof ValidationError) {
         return res.status(400).json({
@@ -408,7 +539,6 @@ export class UsuarioController {
       }
     }
   }
-  // Adicione este método ao UsuarioController
 
   static async checkDuplicateFieldsForEdit(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -420,12 +550,11 @@ export class UsuarioController {
         return;
       }
 
-      // Verificar email duplicado (excluindo o próprio usuário)
       if (email) {
         const existingEmail = await Usuario.findOne({
           where: {
             email,
-            id: { [Op.ne]: userId }, // Não igual ao ID do usuário atual
+            id: { [Op.ne]: userId },
           },
         });
         if (existingEmail) {
@@ -433,7 +562,6 @@ export class UsuarioController {
         }
       }
 
-      // Verificar CPF duplicado (excluindo o próprio usuário)
       if (cpf) {
         const cpfNumerico = cpf.replace(/\D/g, '');
         const existingCpf = await Usuario.findOne({
@@ -447,7 +575,6 @@ export class UsuarioController {
         }
       }
 
-      // Verificar telefone duplicado (excluindo o próprio usuário)
       if (telefone) {
         const telefoneNumerico = telefone.replace(/\D/g, '');
         const existingTelefone = await Usuario.findOne({
@@ -478,6 +605,8 @@ export class UsuarioController {
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
+
+  // 🔄 MÉTODO UPDATE CORRIGIDO
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -492,7 +621,6 @@ export class UsuarioController {
         return;
       }
 
-      // Desestruturar e extrair os campos permitidos
       let {
         foto: bodyFoto,
         nome,
@@ -506,11 +634,22 @@ export class UsuarioController {
         cidade_id,
       } = req.body;
 
+      // Validações (mantidas iguais)
+      if (email !== undefined && email !== null && email.trim() !== '') {
+        const validacaoEmail = UsuarioController.validarEmail(email);
+        if (!validacaoEmail.isValid) {
+          res.status(400).json({
+            error: 'E-mail inválido',
+            message: validacaoEmail.errors.join(', '),
+            emailErrors: validacaoEmail.errors,
+          });
+          return;
+        }
+      }
+
       if (cpfInput !== undefined && cpfInput !== null) {
-        // Remove caracteres não numéricos
         const cpfNumerico = cpfInput.replace(/\D/g, '');
 
-        // Verifica se o CPF é válido
         if (!cpf.isValid(cpfNumerico)) {
           res.status(400).json({
             error: 'CPF inválido',
@@ -519,7 +658,6 @@ export class UsuarioController {
           return;
         }
 
-        // Formata o CPF antes de salvar (opcional)
         cpfInput = cpf.format(cpfNumerico);
       }
 
@@ -534,11 +672,9 @@ export class UsuarioController {
           return;
         }
 
-        // Usa o telefone formatado
         telefone = validacaoTelefone.formatted;
       }
 
-      // Inicializar dados atualizados
       const dadosAtualizados: any = {
         nome,
         sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
@@ -550,9 +686,7 @@ export class UsuarioController {
         cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
       };
 
-      // Criptografar a senha se foi fornecida
       if (senha && senha.trim() !== '') {
-        // NOVA VALIDAÇÃO: Usar a função de validação granular de senha
         const validacaoSenha = UsuarioController.validarSenha(senha);
         if (!validacaoSenha.isValid) {
           res.status(400).json({
@@ -569,47 +703,43 @@ export class UsuarioController {
         delete dadosAtualizados.senha;
       }
 
-      // ✅ PROCESSAMENTO DA NOVA IMAGEM - ADICIONADO
-      let fotoUrl = usuario.foto; // Manter a foto atual por padrão
+      // 🔄 PROCESSAMENTO DE IMAGEM CORRIGIDO
+      let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
 
-      // Se uma nova imagem foi enviada como arquivo
       if (req.file) {
-        try {
-          const fileBuffer = req.file.buffer;
+        // Nova imagem enviada - deletar a anterior e fazer upload da nova
+        const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
 
-          // Criar um nome de arquivo único baseado no nome do usuário e timestamp
-          const filePath = `usuarios/${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
+        const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
+          req.file.buffer,
+          fileName,
+          req.file.mimetype,
+          usuario.foto // Passar a imagem anterior para deletar
+        );
 
-          const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
-            contentType: req.file.mimetype,
-            upsert: true, // Permite sobrescrever se o arquivo já existir
-          });
-
-          if (error) {
-            // Não falhar a atualização por causa da imagem, apenas manter a anterior
-          } else if (data?.path) {
-            const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
-
-            fotoUrl = publicData?.publicUrl ?? usuario.foto;
+        if (novaFotoUrl) {
+          fotoUrl = novaFotoUrl;
+        }
+      } else if (bodyFoto !== undefined) {
+        // Se bodyFoto é null/empty string, significa que o usuário quer remover a foto
+        if (!bodyFoto || bodyFoto.trim() === '') {
+          // Deletar a imagem atual se existir
+          if (usuario.foto) {
+            await UsuarioController.deletarImagemSupabase(usuario.foto);
           }
-        } catch (fileError) {
-          // Manter a foto anterior se houve erro
+          fotoUrl = null;
+        } else {
+          // Manter a foto existente (bodyFoto contém a URL atual)
+          fotoUrl = bodyFoto;
         }
       }
-      // Se não há arquivo mas há uma URL no body (foto existente ou removida)
-      else if (bodyFoto !== undefined) {
-        fotoUrl = bodyFoto;
-      }
 
-      // Adicionar a foto aos dados atualizados
       dadosAtualizados.foto = fotoUrl;
 
-      // ATUALIZAÇÃO COM HOOKS ATIVADOS
       await usuario.update(dadosAtualizados, {
         hooks: true,
       });
 
-      // Recarregar o usuário para garantir que temos os dados corretos
       const usuarioAtualizado = await Usuario.findByPk(id);
 
       if (!usuarioAtualizado) {
@@ -617,14 +747,12 @@ export class UsuarioController {
         return;
       }
 
-      // Retorna o usuário com a URL pública para a foto
       res.json({
         ...usuarioAtualizado.toJSON(),
         fotoUrl,
       });
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
-        // Identificar qual campo específico está duplicado
         const duplicatedField = error.errors?.[0]?.path;
         const duplicateFields: string[] = [];
         let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
@@ -666,6 +794,8 @@ export class UsuarioController {
       }
     }
   }
+
+  // 🔄 MÉTODO DELETE CORRIGIDO
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -677,7 +807,7 @@ export class UsuarioController {
         return;
       }
 
-      // 🐾 Verificar se o usuário tem pets vinculados
+      // Verificar se o usuário tem pets vinculados
       const petCount = await Pet.count({
         where: {
           usuario_id: id,
@@ -688,16 +818,15 @@ export class UsuarioController {
         res.status(400).json({
           title: 'Erro ao Excluir Conta',
           error: 'Não é possível excluir a conta',
-          message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
-            petCount > 1 ? 's' : ''
-          }. Remova ${petCount > 1 ? 'todos os pets' : 'o pet'} antes de excluir sua conta.`,
+          message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${petCount > 1 ? 's' : ''
+            }. Remova ${petCount > 1 ? 'todos os pets' : 'o pet'} antes de excluir sua conta.`,
           success: false,
           petCount: petCount,
         });
         return;
       }
 
-      // 📋 Verificar se usuário tem termo de doação
+      // Verificar se usuário tem termo de doação
       let termoInfo = null;
       try {
         const termo = await TermoDoacao.findByDoador(id);
@@ -709,17 +838,20 @@ export class UsuarioController {
             dataAssinatura: termo.data_assinatura,
           };
 
-          // 🗑️ Excluir termo de doação ANTES do usuário
           await TermoDoacao.destroy({
             where: { id: termo.id },
           });
         }
-      } catch (termoError) {}
+      } catch (termoError) { }
 
-      // 🗑️ Excluir o usuário
+      // 🆕 DELETAR IMAGEM DO SUPABASE ANTES DE EXCLUIR USUÁRIO
+      if (usuario.foto) {
+        await UsuarioController.deletarImagemSupabase(usuario.foto);
+      }
+
+      // Excluir o usuário
       await usuario.destroy();
 
-      // 📧 Resposta de sucesso com informações detalhadas
       res.status(200).json({
         success: true,
         message: 'Conta excluída com sucesso',
@@ -728,6 +860,7 @@ export class UsuarioController {
           usuarioId: id,
           usuarioNome: usuario.nome,
           usuarioEmail: usuario.email,
+          fotoExcluida: !!usuario.foto,
           termoExcluido: !!termoInfo,
           termoInfo: termoInfo,
           dataExclusao: new Date().toISOString(),
@@ -743,8 +876,6 @@ export class UsuarioController {
           success: false,
         });
       } else {
-        // Outros erros
-
         res.status(500).json({
           title: 'Erro Interno',
           error: 'Erro ao deletar usuário.',
@@ -755,7 +886,6 @@ export class UsuarioController {
     }
   }
 
-  // 🆕 Adicione este novo método para verificar se pode excluir (útil para o frontend)
   static async podeExcluirConta(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -765,19 +895,16 @@ export class UsuarioController {
         return;
       }
 
-      // Verificar se o usuário existe
       const usuario = await Usuario.findByPk(id);
       if (!usuario) {
         res.status(404).json({ error: 'Usuário não encontrado' });
         return;
       }
 
-      // Verificar pets
       const petCount = await Pet.count({
         where: { usuario_id: id },
       });
 
-      // Verificar termo
       let temTermo = false;
       let termoInfo = null;
       try {
@@ -790,7 +917,7 @@ export class UsuarioController {
             motivoDoacao: termo.motivo_doacao,
           };
         }
-      } catch (error) {}
+      } catch (error) { }
 
       const podeExcluir = petCount === 0;
 
@@ -825,13 +952,21 @@ export class UsuarioController {
     try {
       const { email } = req.body;
 
-      // Verificar se o email foi fornecido
       if (!email) {
         res.status(400).json({ error: 'Email é obrigatório' });
         return;
       }
 
-      // Verificar se o email existe no banco de dados
+      const validacaoEmail = UsuarioController.validarEmail(email);
+      if (!validacaoEmail.isValid) {
+        res.status(400).json({
+          error: 'E-mail inválido',
+          message: validacaoEmail.errors.join(', '),
+          emailErrors: validacaoEmail.errors,
+        });
+        return;
+      }
+
       const usuario = await Usuario.findOne({
         where: { email },
       });
@@ -841,17 +976,13 @@ export class UsuarioController {
         return;
       }
 
-      // Gerar um código aleatório de 6 dígitos
       const codigo = UsuarioController.gerarCodigoAleatorio();
 
-      // Definir prazo de expiração (4 minutos a partir de agora)
       const expiracao = new Date();
       expiracao.setMinutes(expiracao.getMinutes() + 4);
 
-      // Primeiro, invalidar qualquer código existente para este usuário
       await RecuperacaoSenha.update({ expirado: true }, { where: { usuario_id: usuario.id, expirado: false } });
 
-      // Criar um novo registro de código de recuperação
       await RecuperacaoSenha.create({
         usuario_id: usuario.id,
         email: usuario.email,
@@ -860,7 +991,6 @@ export class UsuarioController {
         expirado: false,
       });
 
-      // Configurar o transportador de email
       const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
         port: Number(process.env.EMAIL_PORT) || 587,
@@ -871,7 +1001,6 @@ export class UsuarioController {
         },
       });
 
-      // Configurar o email
       const mailOptions = {
         from: `"Petz_Up" <${process.env.EMAIL_USER}>`,
         to: usuario.email,
@@ -890,10 +1019,8 @@ export class UsuarioController {
       `,
       };
 
-      // Enviar o email
       await transporter.sendMail(mailOptions);
 
-      // Retornar sucesso
       res.status(200).json({
         success: true,
         message: 'Código enviado com sucesso para o email cadastrado!',
@@ -911,19 +1038,17 @@ export class UsuarioController {
     try {
       const { email, codigo } = req.body;
 
-      // Verificar se email e código foram fornecidos
       if (!email || !codigo) {
         res.status(400).json({ error: 'Email e código são obrigatórios' });
         return;
       }
 
-      // Buscar a entrada de recuperação mais recente não expirada
       const recuperacao = await RecuperacaoSenha.findOne({
         where: {
           email,
           codigo,
           expirado: false,
-          expiracao: { [Op.gt]: new Date() }, // Verifica se o código ainda não expirou
+          expiracao: { [Op.gt]: new Date() },
         },
         order: [['createdAt', 'DESC']],
       });
@@ -933,10 +1058,8 @@ export class UsuarioController {
         return;
       }
 
-      // Código válido, marcar como usado
       await recuperacao.update({ expirado: true });
 
-      // Retornar sucesso
       res.status(200).json({
         success: true,
         message: 'Código verificado com sucesso!',
