@@ -140,13 +140,13 @@ export class UsuarioController {
         .remove([caminho]);
 
       if (error) {
-        console.error('Erro ao deletar imagem do Supabase:', error);
+        
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Erro ao deletar imagem:', error);
+   
       return false;
     }
   }
@@ -174,7 +174,7 @@ export class UsuarioController {
         });
 
       if (error) {
-        console.error('Erro no upload:', error);
+        
         return null;
       }
 
@@ -188,7 +188,7 @@ export class UsuarioController {
 
       return publicData?.publicUrl ?? null;
     } catch (error) {
-      console.error('Erro no upload da imagem:', error);
+      
       return null;
     }
   }
@@ -607,193 +607,222 @@ export class UsuarioController {
   }
 
   // 🔄 MÉTODO UPDATE CORRIGIDO
-  static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'ID de usuário inválido' });
-        return;
-      }
+  // 🔄 MÉTODO UPDATE CORRIGIDO - Renomeia imagem quando nome muda
+static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'ID de usuário inválido' });
+      return;
+    }
 
-      const usuario = await Usuario.findByPk(id);
-      if (!usuario) {
-        res.status(404).json({ error: 'Usuário não encontrado' });
-        return;
-      }
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) {
+      res.status(404).json({ error: 'Usuário não encontrado' });
+      return;
+    }
 
-      let {
-        foto: bodyFoto,
-        nome,
-        sexo_id,
-        telefone,
-        email,
-        senha,
-        cpf: cpfInput,
-        cep,
-        estado_id,
-        cidade_id,
-      } = req.body;
+    let {
+      foto: bodyFoto,
+      nome,
+      sexo_id,
+      telefone,
+      email,
+      senha,
+      cpf: cpfInput,
+      cep,
+      estado_id,
+      cidade_id,
+    } = req.body;
 
-      // Validações (mantidas iguais)
-      if (email !== undefined && email !== null && email.trim() !== '') {
-        const validacaoEmail = UsuarioController.validarEmail(email);
-        if (!validacaoEmail.isValid) {
-          res.status(400).json({
-            error: 'E-mail inválido',
-            message: validacaoEmail.errors.join(', '),
-            emailErrors: validacaoEmail.errors,
-          });
-          return;
-        }
-      }
-
-      if (cpfInput !== undefined && cpfInput !== null) {
-        const cpfNumerico = cpfInput.replace(/\D/g, '');
-
-        if (!cpf.isValid(cpfNumerico)) {
-          res.status(400).json({
-            error: 'CPF inválido',
-            message: 'O CPF informado não é válido.',
-          });
-          return;
-        }
-
-        cpfInput = cpf.format(cpfNumerico);
-      }
-
-      if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
-        const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
-
-        if (!validacaoTelefone.isValid) {
-          res.status(400).json({
-            error: 'Telefone inválido',
-            message: validacaoTelefone.error || 'O telefone informado não é válido.',
-          });
-          return;
-        }
-
-        telefone = validacaoTelefone.formatted;
-      }
-
-      const dadosAtualizados: any = {
-        nome,
-        sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
-        telefone,
-        email,
-        cpf: cpfInput,
-        cep: cep !== undefined && cep !== null ? cep : usuario.cep,
-        estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
-        cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
-      };
-
-      if (senha && senha.trim() !== '') {
-        const validacaoSenha = UsuarioController.validarSenha(senha);
-        if (!validacaoSenha.isValid) {
-          res.status(400).json({
-            error: 'Senha inválida',
-            message: validacaoSenha.errors.join(', '),
-            passwordErrors: validacaoSenha.errors,
-          });
-          return;
-        }
-
-        const saltRounds = 10;
-        dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
-      } else {
-        delete dadosAtualizados.senha;
-      }
-
-      // 🔄 PROCESSAMENTO DE IMAGEM CORRIGIDO
-      let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
-
-      if (req.file) {
-        // Nova imagem enviada - deletar a anterior e fazer upload da nova
-        const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
-
-        const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
-          req.file.buffer,
-          fileName,
-          req.file.mimetype,
-          usuario.foto // Passar a imagem anterior para deletar
-        );
-
-        if (novaFotoUrl) {
-          fotoUrl = novaFotoUrl;
-        }
-      } else if (bodyFoto !== undefined) {
-        // Se bodyFoto é null/empty string, significa que o usuário quer remover a foto
-        if (!bodyFoto || bodyFoto.trim() === '') {
-          // Deletar a imagem atual se existir
-          if (usuario.foto) {
-            await UsuarioController.deletarImagemSupabase(usuario.foto);
-          }
-          fotoUrl = null;
-        } else {
-          // Manter a foto existente (bodyFoto contém a URL atual)
-          fotoUrl = bodyFoto;
-        }
-      }
-
-      dadosAtualizados.foto = fotoUrl;
-
-      await usuario.update(dadosAtualizados, {
-        hooks: true,
-      });
-
-      const usuarioAtualizado = await Usuario.findByPk(id);
-
-      if (!usuarioAtualizado) {
-        res.status(404).json({ error: 'Usuário não encontrado após atualização' });
-        return;
-      }
-
-      res.json({
-        ...usuarioAtualizado.toJSON(),
-        fotoUrl,
-      });
-    } catch (error) {
-      if (error instanceof UniqueConstraintError) {
-        const duplicatedField = error.errors?.[0]?.path;
-        const duplicateFields: string[] = [];
-        let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
-        let fieldName = '';
-
-        switch (duplicatedField) {
-          case 'email':
-            specificMessage = 'Este e-mail já está sendo usado por outro usuário.';
-            fieldName = 'email';
-            duplicateFields.push('email');
-            break;
-          case 'cpf':
-            specificMessage = 'Este CPF já está sendo usado por outro usuário.';
-            fieldName = 'cpf';
-            duplicateFields.push('cpf');
-            break;
-          case 'telefone':
-            specificMessage = 'Este telefone já está sendo usado por outro usuário.';
-            fieldName = 'telefone';
-            duplicateFields.push('telefone');
-            break;
-        }
-
+    // Validações (mantidas iguais)
+    if (email !== undefined && email !== null && email.trim() !== '') {
+      const validacaoEmail = UsuarioController.validarEmail(email);
+      if (!validacaoEmail.isValid) {
         res.status(400).json({
-          error: 'Dados duplicados',
-          message: specificMessage,
-          duplicateField: fieldName,
-          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
-          exists: true,
+          error: 'E-mail inválido',
+          message: validacaoEmail.errors.join(', '),
+          emailErrors: validacaoEmail.errors,
         });
-      } else if (error instanceof ValidationError) {
-        res.status(400).json({
-          error: 'Dados inválidos',
-          message: error.message,
-          details: error.errors.map((e) => ({ field: e.path, message: e.message })),
-        });
-      } else {
-        res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+        return;
       }
     }
+
+    if (cpfInput !== undefined && cpfInput !== null) {
+      const cpfNumerico = cpfInput.replace(/\D/g, '');
+
+      if (!cpf.isValid(cpfNumerico)) {
+        res.status(400).json({
+          error: 'CPF inválido',
+          message: 'O CPF informado não é válido.',
+        });
+        return;
+      }
+
+      cpfInput = cpf.format(cpfNumerico);
+    }
+
+    if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
+      const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
+
+      if (!validacaoTelefone.isValid) {
+        res.status(400).json({
+          error: 'Telefone inválido',
+          message: validacaoTelefone.error || 'O telefone informado não é válido.',
+        });
+        return;
+      }
+
+      telefone = validacaoTelefone.formatted;
+    }
+
+    const dadosAtualizados: any = {
+      nome,
+      sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
+      telefone,
+      email,
+      cpf: cpfInput,
+      cep: cep !== undefined && cep !== null ? cep : usuario.cep,
+      estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
+      cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
+    };
+
+    if (senha && senha.trim() !== '') {
+      const validacaoSenha = UsuarioController.validarSenha(senha);
+      if (!validacaoSenha.isValid) {
+        res.status(400).json({
+          error: 'Senha inválida',
+          message: validacaoSenha.errors.join(', '),
+          passwordErrors: validacaoSenha.errors,
+        });
+        return;
+      }
+
+      const saltRounds = 10;
+      dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
+    } else {
+      delete dadosAtualizados.senha;
+    }
+
+    // 🆕 PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
+    let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
+
+    if (req.file) {
+      // 📷 CASO 1: Nova imagem enviada
+      const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
+
+      const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
+        req.file.buffer,
+        fileName,
+        req.file.mimetype,
+        usuario.foto // Passar a imagem anterior para deletar
+      );
+
+      if (novaFotoUrl) {
+        fotoUrl = novaFotoUrl;
+      }
+    } else if (bodyFoto !== undefined) {
+      if (!bodyFoto || bodyFoto.trim() === '') {
+        // 🗑️ CASO 2: Remover foto
+        if (usuario.foto) {
+          await UsuarioController.deletarImagemSupabase(usuario.foto);
+        }
+        fotoUrl = null;
+      } else {
+        // 🔄 CASO 3: Manter foto existente, mas verificar se nome mudou
+        fotoUrl = bodyFoto; // Manter a URL atual por enquanto
+      }
+    } else if (nome && nome !== usuario.nome && usuario.foto) {
+      // 🆕 CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
+    
+      
+      try {
+        // Baixar a imagem atual do Supabase
+        const response = await fetch(usuario.foto);
+        if (response.ok) {
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const novoFileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+          
+          // Fazer upload com novo nome e deletar o antigo
+          const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
+            buffer,
+            novoFileName,
+            'image/jpeg',
+            usuario.foto // Deletar a imagem antiga
+          );
+
+          if (novaFotoUrl) {
+            fotoUrl = novaFotoUrl;
+     
+          }
+        }
+      } catch (error) {
+        
+        // Manter a foto atual em caso de erro
+        fotoUrl = usuario.foto;
+      }
+    }
+
+    dadosAtualizados.foto = fotoUrl;
+
+    await usuario.update(dadosAtualizados, {
+      hooks: true,
+    });
+
+    const usuarioAtualizado = await Usuario.findByPk(id);
+
+    if (!usuarioAtualizado) {
+      res.status(404).json({ error: 'Usuário não encontrado após atualização' });
+      return;
+    }
+
+    res.json({
+      ...usuarioAtualizado.toJSON(),
+      fotoUrl,
+    });
+  } catch (error) {
+    if (error instanceof UniqueConstraintError) {
+      const duplicatedField = error.errors?.[0]?.path;
+      const duplicateFields: string[] = [];
+      let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
+      let fieldName = '';
+
+      switch (duplicatedField) {
+        case 'email':
+          specificMessage = 'Este e-mail já está sendo usado por outro usuário.';
+          fieldName = 'email';
+          duplicateFields.push('email');
+          break;
+        case 'cpf':
+          specificMessage = 'Este CPF já está sendo usado por outro usuário.';
+          fieldName = 'cpf';
+          duplicateFields.push('cpf');
+          break;
+        case 'telefone':
+          specificMessage = 'Este telefone já está sendo usado por outro usuário.';
+          fieldName = 'telefone';
+          duplicateFields.push('telefone');
+          break;
+      }
+
+      res.status(400).json({
+        error: 'Dados duplicados',
+        message: specificMessage,
+        duplicateField: fieldName,
+        duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
+        exists: true,
+      });
+    } else if (error instanceof ValidationError) {
+      res.status(400).json({
+        error: 'Dados inválidos',
+        message: error.message,
+        details: error.errors.map((e) => ({ field: e.path, message: e.message })),
+      });
+    } else {
+      res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+    }
   }
+}
 
   // 🔄 MÉTODO DELETE CORRIGIDO
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
