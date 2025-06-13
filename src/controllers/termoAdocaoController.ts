@@ -912,7 +912,7 @@ export class TermoAdocaoController {
     doc
       .fontSize(8)
       .font('Helvetica')
-      .text('Este documento foi gerado digitalmente pelo Petz_Up - Plataforma de Adoção de Pets', 50, yPosition, {
+      .text('Este documento foi gerado digitalmente pelo Pets_Up - Plataforma de Adoção de Pets', 50, yPosition, {
         width: 500,
         align: 'center',
       });
