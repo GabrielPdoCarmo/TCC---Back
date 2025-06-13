@@ -24,8 +24,7 @@ cd TCC---Back
 
 ```bash
 yarn
-```
-```bash
+# ou, alternativamente
 npm install
 ```
 
