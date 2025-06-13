@@ -17,10 +17,7 @@ router.get('/raca/:raca_id', PetController.getByRacaId);
 router.get('/especie/:especie_id', PetController.getByEspecieId);
 router.get('/estado/:estado_id/cidade/:cidade_id', PetController.getByEstadoId_CidadeId);
 router.get('/faixa-etaria/:faixa_etaria_id/idade/:idade', PetController.getByFaixaEtariaId_Idade);
-router.get(
-  '/faixa-etaria/:faixa_etaria_id/idade/:idade/status/:status_id',
-  PetController.getByFaixaEtariaId_Idade_StatusId
-);
+router.get('/faixa-etaria/:faixa_etaria_id/idade/:idade/status/:status_id',PetController.getByFaixaEtariaId_Idade_StatusId);
 router.get('/meus-pets/nome/:nome', PetController.getMyPetsByName);
 router.get('/raca/:raca_id/status/:status_id', PetController.getByRacaId_StatusId);
 router.get('/especie/:especie_id/status/:status_id', PetController.getByEspecieId_StatusId);
