@@ -66,7 +66,7 @@ export class UsuarioController {
 
       // Verificar se não tem partes vazias no domínio
       const domainParts = domain.split('.');
-      if (domainParts.some(part => part.length === 0)) {
+      if (domainParts.some((part) => part.length === 0)) {
         errors.push('Domínio não pode ter partes vazias');
       }
 
@@ -135,18 +135,14 @@ export class UsuarioController {
       const caminho = UsuarioController.extrairCaminhoSupabase(imagemUrl);
       if (!caminho) return true;
 
-      const { error } = await supabase.storage
-        .from('user-images')
-        .remove([caminho]);
+      const { error } = await supabase.storage.from('user-images').remove([caminho]);
 
       if (error) {
-        
         return false;
       }
 
       return true;
     } catch (error) {
-   
       return false;
     }
   }
@@ -166,15 +162,12 @@ export class UsuarioController {
 
       const filePath = `usuarios/${fileName}`;
 
-      const { data, error } = await supabase.storage
-        .from('user-images')
-        .upload(filePath, fileBuffer, {
-          contentType,
-          upsert: true,
-        });
+      const { data, error } = await supabase.storage.from('user-images').upload(filePath, fileBuffer, {
+        contentType,
+        upsert: true,
+      });
 
       if (error) {
-        
         return null;
       }
 
@@ -182,13 +175,10 @@ export class UsuarioController {
         return null;
       }
 
-      const { data: publicData } = supabase.storage
-        .from('user-images')
-        .getPublicUrl(data.path);
+      const { data: publicData } = supabase.storage.from('user-images').getPublicUrl(data.path);
 
       return publicData?.publicUrl ?? null;
     } catch (error) {
-      
       return null;
     }
   }
@@ -440,11 +430,7 @@ export class UsuarioController {
       if (req.file) {
         const fileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
-        fotoUrl = await UsuarioController.uploadImagemSupabase(
-          req.file.buffer,
-          fileName,
-          req.file.mimetype
-        );
+        fotoUrl = await UsuarioController.uploadImagemSupabase(req.file.buffer, fileName, req.file.mimetype);
       }
 
       const usuario = await Usuario.create({
@@ -517,7 +503,7 @@ export class UsuarioController {
                 specificMessage = `Os seguintes campos já estão cadastrados: ${duplicateFields.join(', ')}`;
                 fieldName = duplicateFields[0];
               }
-            } catch (checkError) { }
+            } catch (checkError) {}
             break;
         }
 
@@ -608,221 +594,218 @@ export class UsuarioController {
 
   // 🔄 MÉTODO UPDATE CORRIGIDO
   // 🔄 MÉTODO UPDATE CORRIGIDO - Renomeia imagem quando nome muda
-static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'ID de usuário inválido' });
-      return;
-    }
-
-    const usuario = await Usuario.findByPk(id);
-    if (!usuario) {
-      res.status(404).json({ error: 'Usuário não encontrado' });
-      return;
-    }
-
-    let {
-      foto: bodyFoto,
-      nome,
-      sexo_id,
-      telefone,
-      email,
-      senha,
-      cpf: cpfInput,
-      cep,
-      estado_id,
-      cidade_id,
-    } = req.body;
-
-    // Validações (mantidas iguais)
-    if (email !== undefined && email !== null && email.trim() !== '') {
-      const validacaoEmail = UsuarioController.validarEmail(email);
-      if (!validacaoEmail.isValid) {
-        res.status(400).json({
-          error: 'E-mail inválido',
-          message: validacaoEmail.errors.join(', '),
-          emailErrors: validacaoEmail.errors,
-        });
-        return;
-      }
-    }
-
-    if (cpfInput !== undefined && cpfInput !== null) {
-      const cpfNumerico = cpfInput.replace(/\D/g, '');
-
-      if (!cpf.isValid(cpfNumerico)) {
-        res.status(400).json({
-          error: 'CPF inválido',
-          message: 'O CPF informado não é válido.',
-        });
+  static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = Number(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'ID de usuário inválido' });
         return;
       }
 
-      cpfInput = cpf.format(cpfNumerico);
-    }
-
-    if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
-      const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
-
-      if (!validacaoTelefone.isValid) {
-        res.status(400).json({
-          error: 'Telefone inválido',
-          message: validacaoTelefone.error || 'O telefone informado não é válido.',
-        });
+      const usuario = await Usuario.findByPk(id);
+      if (!usuario) {
+        res.status(404).json({ error: 'Usuário não encontrado' });
         return;
       }
 
-      telefone = validacaoTelefone.formatted;
-    }
+      let {
+        foto: bodyFoto,
+        nome,
+        sexo_id,
+        telefone,
+        email,
+        senha,
+        cpf: cpfInput,
+        cep,
+        estado_id,
+        cidade_id,
+      } = req.body;
 
-    const dadosAtualizados: any = {
-      nome,
-      sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
-      telefone,
-      email,
-      cpf: cpfInput,
-      cep: cep !== undefined && cep !== null ? cep : usuario.cep,
-      estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
-      cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
-    };
-
-    if (senha && senha.trim() !== '') {
-      const validacaoSenha = UsuarioController.validarSenha(senha);
-      if (!validacaoSenha.isValid) {
-        res.status(400).json({
-          error: 'Senha inválida',
-          message: validacaoSenha.errors.join(', '),
-          passwordErrors: validacaoSenha.errors,
-        });
-        return;
-      }
-
-      const saltRounds = 10;
-      dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
-    } else {
-      delete dadosAtualizados.senha;
-    }
-
-    // 🆕 PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
-    let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
-
-    if (req.file) {
-      // 📷 CASO 1: Nova imagem enviada
-      const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
-
-      const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
-        req.file.buffer,
-        fileName,
-        req.file.mimetype,
-        usuario.foto // Passar a imagem anterior para deletar
-      );
-
-      if (novaFotoUrl) {
-        fotoUrl = novaFotoUrl;
-      }
-    } else if (bodyFoto !== undefined) {
-      if (!bodyFoto || bodyFoto.trim() === '') {
-        // 🗑️ CASO 2: Remover foto
-        if (usuario.foto) {
-          await UsuarioController.deletarImagemSupabase(usuario.foto);
+      // Validações (mantidas iguais)
+      if (email !== undefined && email !== null && email.trim() !== '') {
+        const validacaoEmail = UsuarioController.validarEmail(email);
+        if (!validacaoEmail.isValid) {
+          res.status(400).json({
+            error: 'E-mail inválido',
+            message: validacaoEmail.errors.join(', '),
+            emailErrors: validacaoEmail.errors,
+          });
+          return;
         }
-        fotoUrl = null;
+      }
+
+      if (cpfInput !== undefined && cpfInput !== null) {
+        const cpfNumerico = cpfInput.replace(/\D/g, '');
+
+        if (!cpf.isValid(cpfNumerico)) {
+          res.status(400).json({
+            error: 'CPF inválido',
+            message: 'O CPF informado não é válido.',
+          });
+          return;
+        }
+
+        cpfInput = cpf.format(cpfNumerico);
+      }
+
+      if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
+        const validacaoTelefone = UsuarioController.validarEFormatarTelefone(telefone);
+
+        if (!validacaoTelefone.isValid) {
+          res.status(400).json({
+            error: 'Telefone inválido',
+            message: validacaoTelefone.error || 'O telefone informado não é válido.',
+          });
+          return;
+        }
+
+        telefone = validacaoTelefone.formatted;
+      }
+
+      const dadosAtualizados: any = {
+        nome,
+        sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
+        telefone,
+        email,
+        cpf: cpfInput,
+        cep: cep !== undefined && cep !== null ? cep : usuario.cep,
+        estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
+        cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
+      };
+
+      if (senha && senha.trim() !== '') {
+        const validacaoSenha = UsuarioController.validarSenha(senha);
+        if (!validacaoSenha.isValid) {
+          res.status(400).json({
+            error: 'Senha inválida',
+            message: validacaoSenha.errors.join(', '),
+            passwordErrors: validacaoSenha.errors,
+          });
+          return;
+        }
+
+        const saltRounds = 10;
+        dadosAtualizados.senha = await bcrypt.hash(senha, saltRounds);
       } else {
-        // 🔄 CASO 3: Manter foto existente, mas verificar se nome mudou
-        fotoUrl = bodyFoto; // Manter a URL atual por enquanto
+        delete dadosAtualizados.senha;
       }
-    } else if (nome && nome !== usuario.nome && usuario.foto) {
-      // 🆕 CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
-    
-      
-      try {
-        // Baixar a imagem atual do Supabase
-        const response = await fetch(usuario.foto);
-        if (response.ok) {
-          const buffer = Buffer.from(await response.arrayBuffer());
-          const novoFileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
-          
-          // Fazer upload com novo nome e deletar o antigo
-          const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
-            buffer,
-            novoFileName,
-            'image/jpeg',
-            usuario.foto // Deletar a imagem antiga
-          );
 
-          if (novaFotoUrl) {
-            fotoUrl = novaFotoUrl;
-     
-          }
+      // 🆕 PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
+      let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
+
+      if (req.file) {
+        // 📷 CASO 1: Nova imagem enviada
+        const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
+
+        const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
+          req.file.buffer,
+          fileName,
+          req.file.mimetype,
+          usuario.foto // Passar a imagem anterior para deletar
+        );
+
+        if (novaFotoUrl) {
+          fotoUrl = novaFotoUrl;
         }
-      } catch (error) {
-        
-        // Manter a foto atual em caso de erro
-        fotoUrl = usuario.foto;
-      }
-    }
+      } else if (bodyFoto !== undefined) {
+        if (!bodyFoto || bodyFoto.trim() === '') {
+          // 🗑️ CASO 2: Remover foto
+          if (usuario.foto) {
+            await UsuarioController.deletarImagemSupabase(usuario.foto);
+          }
+          fotoUrl = null;
+        } else {
+          // 🔄 CASO 3: Manter foto existente, mas verificar se nome mudou
+          fotoUrl = bodyFoto; // Manter a URL atual por enquanto
+        }
+      } else if (nome && nome !== usuario.nome && usuario.foto) {
+        // 🆕 CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
 
-    dadosAtualizados.foto = fotoUrl;
+        try {
+          // Baixar a imagem atual do Supabase
+          const response = await fetch(usuario.foto);
+          if (response.ok) {
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const novoFileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
-    await usuario.update(dadosAtualizados, {
-      hooks: true,
-    });
+            // Fazer upload com novo nome e deletar o antigo
+            const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
+              buffer,
+              novoFileName,
+              'image/jpeg',
+              usuario.foto // Deletar a imagem antiga
+            );
 
-    const usuarioAtualizado = await Usuario.findByPk(id);
-
-    if (!usuarioAtualizado) {
-      res.status(404).json({ error: 'Usuário não encontrado após atualização' });
-      return;
-    }
-
-    res.json({
-      ...usuarioAtualizado.toJSON(),
-      fotoUrl,
-    });
-  } catch (error) {
-    if (error instanceof UniqueConstraintError) {
-      const duplicatedField = error.errors?.[0]?.path;
-      const duplicateFields: string[] = [];
-      let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
-      let fieldName = '';
-
-      switch (duplicatedField) {
-        case 'email':
-          specificMessage = 'Este e-mail já está sendo usado por outro usuário.';
-          fieldName = 'email';
-          duplicateFields.push('email');
-          break;
-        case 'cpf':
-          specificMessage = 'Este CPF já está sendo usado por outro usuário.';
-          fieldName = 'cpf';
-          duplicateFields.push('cpf');
-          break;
-        case 'telefone':
-          specificMessage = 'Este telefone já está sendo usado por outro usuário.';
-          fieldName = 'telefone';
-          duplicateFields.push('telefone');
-          break;
+            if (novaFotoUrl) {
+              fotoUrl = novaFotoUrl;
+            }
+          }
+        } catch (error) {
+          // Manter a foto atual em caso de erro
+          fotoUrl = usuario.foto;
+        }
       }
 
-      res.status(400).json({
-        error: 'Dados duplicados',
-        message: specificMessage,
-        duplicateField: fieldName,
-        duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
-        exists: true,
+      dadosAtualizados.foto = fotoUrl;
+
+      await usuario.update(dadosAtualizados, {
+        hooks: true,
       });
-    } else if (error instanceof ValidationError) {
-      res.status(400).json({
-        error: 'Dados inválidos',
-        message: error.message,
-        details: error.errors.map((e) => ({ field: e.path, message: e.message })),
+
+      const usuarioAtualizado = await Usuario.findByPk(id);
+
+      if (!usuarioAtualizado) {
+        res.status(404).json({ error: 'Usuário não encontrado após atualização' });
+        return;
+      }
+
+      res.json({
+        ...usuarioAtualizado.toJSON(),
+        fotoUrl,
       });
-    } else {
-      res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+    } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        const duplicatedField = error.errors?.[0]?.path;
+        const duplicateFields: string[] = [];
+        let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
+        let fieldName = '';
+
+        switch (duplicatedField) {
+          case 'email':
+            specificMessage = 'Este e-mail já está sendo usado por outro usuário.';
+            fieldName = 'email';
+            duplicateFields.push('email');
+            break;
+          case 'cpf':
+            specificMessage = 'Este CPF já está sendo usado por outro usuário.';
+            fieldName = 'cpf';
+            duplicateFields.push('cpf');
+            break;
+          case 'telefone':
+            specificMessage = 'Este telefone já está sendo usado por outro usuário.';
+            fieldName = 'telefone';
+            duplicateFields.push('telefone');
+            break;
+        }
+
+        res.status(400).json({
+          error: 'Dados duplicados',
+          message: specificMessage,
+          duplicateField: fieldName,
+          duplicateFields: duplicateFields.length > 0 ? duplicateFields : ['unknown'],
+          exists: true,
+        });
+      } else if (error instanceof ValidationError) {
+        res.status(400).json({
+          error: 'Dados inválidos',
+          message: error.message,
+          details: error.errors.map((e) => ({ field: e.path, message: e.message })),
+        });
+      } else {
+        res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+      }
     }
   }
-}
 
   // 🔄 MÉTODO DELETE CORRIGIDO
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -847,8 +830,9 @@ static async update(req: Request, res: Response, next: NextFunction): Promise<vo
         res.status(400).json({
           title: 'Erro ao Excluir Conta',
           error: 'Não é possível excluir a conta',
-          message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${petCount > 1 ? 's' : ''
-            }. Remova ${petCount > 1 ? 'todos os pets' : 'o pet'} antes de excluir sua conta.`,
+          message: `Você possui ${petCount} pet${petCount > 1 ? 's' : ''} cadastrado${
+            petCount > 1 ? 's' : ''
+          }. Remova ${petCount > 1 ? 'todos os pets' : 'o pet'} antes de excluir sua conta.`,
           success: false,
           petCount: petCount,
         });
@@ -871,7 +855,7 @@ static async update(req: Request, res: Response, next: NextFunction): Promise<vo
             where: { id: termo.id },
           });
         }
-      } catch (termoError) { }
+      } catch (termoError) {}
 
       // 🆕 DELETAR IMAGEM DO SUPABASE ANTES DE EXCLUIR USUÁRIO
       if (usuario.foto) {
@@ -946,7 +930,7 @@ static async update(req: Request, res: Response, next: NextFunction): Promise<vo
             motivoDoacao: termo.motivo_doacao,
           };
         }
-      } catch (error) { }
+      } catch (error) {}
 
       const podeExcluir = petCount === 0;
 
@@ -1031,19 +1015,19 @@ static async update(req: Request, res: Response, next: NextFunction): Promise<vo
       });
 
       const mailOptions = {
-        from: `"Petz_Up" <${process.env.EMAIL_USER}>`,
+        from: `"Pets_Up" <${process.env.EMAIL_USER}>`,
         to: usuario.email,
-        subject: 'Código de Recuperação de Senha - Petz_Up',
+        subject: 'Código de Recuperação de Senha - Pets_Up',
         html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <h2>Recuperação de Senha</h2>
           <p>Olá ${usuario.nome},</p>
-          <p>Você solicitou a recuperação de senha para sua conta Petz_Up.</p>
+          <p>Você solicitou a recuperação de senha para sua conta Pets_Up.</p>
           <p>Seu código de verificação é:</p>
           <h1 style="font-size: 36px; text-align: center; letter-spacing: 5px; margin: 20px 0; padding: 10px; background-color: #f5f5f5; border-radius: 4px;">${codigo}</h1>
           <p>Este código é válido por 4 minutos.</p>
           <p>Se você não solicitou esta recuperação de senha, por favor ignore este e-mail.</p>
-          <p>Atenciosamente,<br>Equipe Petz_Up</p>
+          <p>Atenciosamente,<br>Equipe Pets_Up</p>
         </div>
       `,
       };
