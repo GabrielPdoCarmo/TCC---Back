@@ -5,7 +5,8 @@ import { PetDoencaDeficiencia } from '../models/petDoencaDeficienciaModel';
 import { Usuario } from '../models/usuarioModel';
 import { Cidade } from '../models/cidadeModel';
 import { supabase } from '../api/supabaseClient';
-
+import { Op } from 'sequelize';
+import { MyPets } from '../models/mypetsModel';
 export class PetController {
   // ✅ Função helper para sanitizar rg_Pet
   private static sanitizeRgPet(value: any): string | null {
@@ -73,53 +74,85 @@ export class PetController {
     }
   };
 
-  static getByNomePet_StatusId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+  // 🔧 CONTROLLER SIMPLIFICADO: Apenas pets que EU QUERO ADOTAR (MyPets)
+  static getMyPetsByName: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { nome } = req.params;
-      const { usuario_id } = req.body;
+      const { usuario_id } = req.query;
 
-      // Verificar se o nome foi fornecido
-      if (!nome) {
-        res.status(400).json({ error: 'Nome do pet não fornecido.' });
-        return;
-      }
-
-      // Verificar se o usuario_id foi fornecido
-      if (!usuario_id) {
-        res.status(400).json({ error: 'ID do usuário não fornecido.' });
-        return;
-      }
-
-      // Verificar se o usuário existe
-      const usuario = await Usuario.findByPk(usuario_id);
-      if (!usuario) {
-        res.status(404).json({ error: 'Usuário não encontrado.' });
-        return;
-      }
-
-      // Buscar o pet pelo nome, status_id 3 ou 4 E que pertença ao usuário logado
-      const pets = await Pet.findAll({
-        where: {
-          nome: nome,
-          status_id: [3, 4], // Filtra apenas pets com status 3 ou 4
-          usuario_id: usuario_id, // NOVO: Filtra apenas pets do usuário logado
-        },
-      });
-
-      // Se não encontrou nenhum pet
-      if (pets.length === 0) {
-        res.status(404).json({
-          error: 'Nenhum pet encontrado com este nome, status válido (3 ou 4) e que pertença ao usuário.',
+      // Validações básicas
+      if (!nome || nome.trim() === '') {
+        res.status(400).json({
+          error: 'Nome do pet não fornecido.',
+          data: [],
         });
         return;
       }
 
+      if (!usuario_id) {
+        res.status(400).json({
+          error: 'ID do usuário não fornecido.',
+          data: [],
+        });
+        return;
+      }
+
+      // Validação: Converter e validar usuario_id
+      const usuarioIdNumber = parseInt(usuario_id as string, 10);
+      if (isNaN(usuarioIdNumber)) {
+        res.status(400).json({
+          error: 'ID do usuário inválido.',
+          data: [],
+        });
+        return;
+      }
+
+      // 🎯 BUSCAR APENAS PETS DE INTERESSE (não pets próprios)
+      // Passo 1: Buscar IDs dos pets pelos quais me interessei
+      const meusPetsInteresse = await MyPets.findAll({
+        where: {
+          usuario_id: usuarioIdNumber,
+        },
+        attributes: ['pet_id'],
+      });
+
+      // Se não tenho interesse em nenhum pet, retornar array vazio
+      if (meusPetsInteresse.length === 0) {
+        res.status(200).json([]);
+        return;
+      }
+
+      // Extrair apenas os pet_ids em um array
+      const petIdsInteresse = meusPetsInteresse.map((mp) => mp.pet_id);
+
+      // Passo 2: Buscar os pets pelos quais me interessei que atendem ao filtro
+      const pets = await Pet.findAll({
+        where: {
+          // Filtro por nome
+          nome: {
+            [Op.like]: `%${nome}%`,
+          },
+          // Apenas pets pelos quais me interessei
+          id: {
+            [Op.in]: petIdsInteresse,
+          },
+          // Status de pets disponíveis para adoção
+          status_id: [3, 4], // "Para Adoção" ou "Adotado"
+        },
+        order: [['nome', 'ASC']],
+      });
+
+      // Sempre retornar array (mesmo que vazio)
       res.status(200).json(pets);
-    } catch (error) {
-      res.status(500).json({ error: 'Erro ao buscar pet pelo nome, status e usuário.' });
+    } catch (error: any) {
+      // Erro consistente: Sempre retornar array vazio em caso de erro
+      res.status(500).json({
+        error: 'Erro ao buscar pets de interesse.',
+        data: [],
+        details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+      });
     }
   };
-
   static getByRacaId: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { raca_id } = req.params;
