@@ -240,6 +240,10 @@ export const racas = [
     especie_id: 1,
   },
   {
+    nome: 'Caramelo',
+    especie_id: 1,
+  },
+  {
     nome: 'Cão da Serra da Estrela',
     especie_id: 1,
   },
@@ -732,6 +736,10 @@ export const racas = [
     especie_id: 1,
   },
   {
+    nome: 'Lulu da Pomerânia',
+    especie_id: 1,
+  },
+  {
     nome: 'Magyar Agár',
     especie_id: 1,
   },
@@ -1156,6 +1164,10 @@ export const racas = [
     especie_id: 1,
   },
   {
+    nome: 'Vira-lata',
+    especie_id: 1,
+  },
+  {
     nome: 'Terra Nova',
     especie_id: 1,
   },
@@ -1273,6 +1285,18 @@ export const racas = [
   },
   {
     nome: 'Exótico de Pelo Curto',
+    especie_id: 2,
+  },
+  {
+    nome: 'Gato Rajado',
+    especie_id: 2,
+  },
+  {
+    nome: 'Gato Frajola (preto e branco)',
+    especie_id: 2,
+  },
+  {
+    nome: 'Gato Amarelo (Caramelo)',
     especie_id: 2,
   },
   {
@@ -1408,6 +1432,10 @@ export const racas = [
     especie_id: 3,
   },
   {
+    nome: 'Canário Chapinha',
+    especie_id: 3,
+  },
+  {
     nome: 'Canário da Terra',
     especie_id: 3,
   },
@@ -1429,6 +1457,10 @@ export const racas = [
   },
   {
     nome: 'Periquito Australiano',
+    especie_id: 3,
+  },
+  {
+    nome: 'Pardal',
     especie_id: 3,
   },
   {
@@ -1465,6 +1497,14 @@ export const racas = [
   },
   {
     nome: 'Jandaia',
+    especie_id: 3,
+  },
+  {
+    nome: 'Maritaca',
+    especie_id: 3,
+  },
+  {
+    nome: 'Papagaio Galego',
     especie_id: 3,
   },
   {
@@ -1525,6 +1565,14 @@ export const racas = [
   },
   {
     nome: 'Rato Twister',
+    especie_id: 4,
+  },
+  {
+    nome: 'Porquinho-da-Índia Abissínio',
+    especie_id: 4,
+  },
+  {
+    nome: 'Cobaya Peruana',
     especie_id: 4,
   },
 ];
