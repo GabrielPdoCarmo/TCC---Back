@@ -11,6 +11,7 @@ bun.lockb
 out/
 
 # Ambiente
+.env
 .env.local
 .env.*.local
 
