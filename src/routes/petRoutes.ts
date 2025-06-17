@@ -22,5 +22,5 @@ router.get('/meus-pets/nome/:nome', PetController.getMyPetsByName);
 router.get('/raca/:raca_id/status/:status_id', PetController.getByRacaId_StatusId);
 router.get('/especie/:especie_id/status/:status_id', PetController.getByEspecieId_StatusId);
 router.get('/estado/:estado_id/cidade/:cidade_id/status/:status_id', PetController.getByEstadoId_CidadeId_StatusId);
-
+router.put('/:id/transfer', PetController.transferPet);
 export default router;

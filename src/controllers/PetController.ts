@@ -772,4 +772,125 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pets por status.' });
     }
   };
+  /**
+   * Método responsável por transferir um pet para um novo usuário
+   * Atualiza automaticamente a localização (cidade_id e estado_id) baseada no novo usuário
+   */
+  static transferPet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params; // ID do pet
+      const { novo_usuario_id } = req.body; // Novo usuário que receberá o pet
+
+      // ========== VALIDAÇÕES ==========
+      
+      // Verificar se o ID do pet foi fornecido
+      if (!id) {
+        res.status(400).json({ error: 'ID do pet não fornecido.' });
+        return;
+      }
+
+      // Verificar se o novo usuario_id foi fornecido
+      if (!novo_usuario_id) {
+        res.status(400).json({ error: 'ID do novo usuário não fornecido.' });
+        return;
+      }
+
+      // Buscar o pet pelo ID
+      const pet = await Pet.findByPk(id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      // Verificar se o novo usuário existe
+      const novoUsuario = await Usuario.findByPk(novo_usuario_id);
+      if (!novoUsuario) {
+        res.status(404).json({ error: 'Novo usuário não encontrado.' });
+        return;
+      }
+
+      // Buscar a cidade do novo usuário para obter o estado
+      const cidade = await Cidade.findByPk(novoUsuario.cidade_id);
+      if (!cidade) {
+        res.status(400).json({ 
+          error: 'Cidade do novo usuário não encontrada.',
+          usuario_id: novo_usuario_id,
+          cidade_id: novoUsuario.cidade_id
+        });
+        return;
+      }
+
+      // ========== VERIFICAÇÕES DE NEGÓCIO ==========
+      
+      // Verificar se o pet já pertence ao usuário informado
+      if (pet.usuario_id === parseInt(novo_usuario_id)) {
+        res.status(400).json({ 
+          error: 'O pet já pertence a este usuário.',
+          pet_id: id,
+          usuario_atual: pet.usuario_id,
+          novo_usuario: novo_usuario_id
+        });
+        return;
+      }
+
+      // Salvar dados do usuário anterior para log/resposta
+      const usuarioAnterior = pet.usuario_id;
+      const cidadeAnterior = pet.cidade_id;
+      const estadoAnterior = pet.estado_id;
+
+      // ========== ATUALIZAÇÃO DO PET ==========
+      
+      // Atualizar o pet com os novos dados
+      await pet.update({
+        usuario_id: novo_usuario_id,
+        cidade_id: novoUsuario.cidade_id,
+        estado_id: cidade.estado_id
+      });
+
+      // Buscar o pet atualizado com informações completas para a resposta
+      const petAtualizado = await Pet.findByPk(id, {
+        include: [
+          {
+            model: Usuario,
+            as: 'usuario', // Assumindo que existe essa associação
+            attributes: ['id', 'nome', 'email']
+          },
+          {
+            model: Cidade,
+            as: 'cidade', // Assumindo que existe essa associação
+            attributes: ['id', 'nome']
+          }
+        ]
+      });
+
+      // Resposta de sucesso com detalhes da transferência
+      res.status(200).json({
+        message: 'Pet transferido com sucesso.',
+        pet: petAtualizado,
+        transferencia: {
+          usuario_anterior: usuarioAnterior,
+          novo_usuario: novo_usuario_id,
+          cidade_anterior: cidadeAnterior,
+          nova_cidade: novoUsuario.cidade_id,
+          estado_anterior: estadoAnterior,
+          novo_estado: cidade.estado_id
+        }
+      });
+
+    } catch (error) {
+      // Tratamento de erro
+      if (error instanceof Error) {
+        res.status(500).json({
+          error: 'Erro ao transferir o pet.',
+          message: error.message,
+          details: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        });
+      } else {
+        res.status(500).json({
+          error: 'Erro desconhecido ao transferir o pet.',
+          details: process.env.NODE_ENV !== 'production' ? String(error) : undefined
+        });
+      }
+    }
+  };
 }
