@@ -23,4 +23,5 @@ router.get('/raca/:raca_id/status/:status_id', PetController.getByRacaId_StatusI
 router.get('/especie/:especie_id/status/:status_id', PetController.getByEspecieId_StatusId);
 router.get('/estado/:estado_id/cidade/:cidade_id/status/:status_id', PetController.getByEstadoId_CidadeId_StatusId);
 router.put('/:id/transfer', PetController.transferPet);
+router.put('/:id/remove', PetController.removePet);
 export default router;
