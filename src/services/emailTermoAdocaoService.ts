@@ -78,8 +78,7 @@ export class EmailService {
       // Verificar se ambos os emails estão disponíveis
       if (!termo.doador_email || !termo.adotante_email) {
         throw new Error(
-          `Emails não disponíveis - Doador: ${termo.doador_email ? 'OK' : 'FALTANDO'}, Adotante: ${
-            termo.adotante_email ? 'OK' : 'FALTANDO'
+          `Emails não disponíveis - Doador: ${termo.doador_email ? 'OK' : 'FALTANDO'}, Adotante: ${termo.adotante_email ? 'OK' : 'FALTANDO'
           }`
         );
       }
@@ -228,7 +227,7 @@ export class EmailService {
               <p><strong>Telefone:</strong> ${this.formatTelefone(termo.adotante_telefone)}</p>
               <p><strong>Localização:</strong> ${termo.getLocalizacaoAdotante()}</p>
               <p><strong>Assinatura Digital:</strong> ${termo.assinatura_digital}</p>
-              ${termo.adotante_cpf ? `<p><strong>CPF:</strong> ${termo.adotante_cpf}</p>` : ''}
+
             </div>
 
             <div class="attachment-note">
@@ -245,20 +244,18 @@ export class EmailService {
               <li>Guardar este documento como comprovante da doação responsável</li>
             </ul>
 
-            ${
-              termo.observacoes
-                ? `
+            ${termo.observacoes
+        ? `
               <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffc107; margin: 20px 0;">
                 <h3>📝 Observações da Adoção:</h3>
                 <p>${termo.observacoes}</p>
               </div>
             `
-                : ''
-            }
+        : ''
+      }
 
-            <p>Agradecemos por ter escolhido nossa plataforma para encontrar um lar amoroso para <strong>${
-              termo.pet_nome
-            }</strong>. 
+            <p>Agradecemos por ter escolhido nossa plataforma para encontrar um lar amoroso para <strong>${termo.pet_nome
+      }</strong>. 
             Sua atitude de doação responsável faz toda a diferença na vida dos animais! 🙏</p>
             
             <p>Se precisar de qualquer esclarecimento, estamos à disposição.</p>
@@ -363,16 +360,15 @@ export class EmailService {
               <li>Informar mudanças de endereço ou contato</li>
             </ul>
 
-            ${
-              termo.observacoes
-                ? `
+            ${termo.observacoes
+        ? `
               <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffc107; margin: 20px 0;">
                 <h3>📝 Observações Especiais:</h3>
                 <p>${termo.observacoes}</p>
               </div>
             `
-                : ''
-            }
+        : ''
+      }
 
             <p><strong>Guarde este documento em local seguro</strong> e lembre-se: você assumiu a responsabilidade de 
             proporcionar muito amor e cuidado ao <span class="highlight">${termo.pet_nome}</span>.</p>
@@ -493,10 +489,7 @@ export class EmailService {
     yPosition += 12;
     doc.text(`Localização: ${termo.getLocalizacaoAdotante()}`, 50, yPosition);
 
-    if (termo.adotante_cpf) {
-      yPosition += 12;
-      doc.text(`CPF: ${termo.adotante_cpf}`, 50, yPosition);
-    }
+
 
     yPosition += 20;
 
