@@ -415,6 +415,7 @@ export class PetController {
         sexo_id,
         rg_Pet = null,
         motivoDoacao,
+        descricaoGeral,
         doencas,
       } = req.body;
 
@@ -442,7 +443,10 @@ export class PetController {
           }
         } catch (fileError) {}
       }
-
+      if (!descricaoGeral || descricaoGeral.trim() === '' || descricaoGeral === 'undefined') {
+        res.status(400).json({ error: 'Descrição geral do pet é obrigatória e não pode ser vazia ou undefined.' });
+        return;
+      }
       // ========== VALIDAÇÕES DE NEGÓCIO ==========
 
       // Validar se o usuário existe
@@ -476,6 +480,7 @@ export class PetController {
         sexo_id,
         rg_Pet: rgSanitizado,
         motivoDoacao,
+        descricaoGeral,
         status_id: 1, // Status padrão: disponível para adoção
         cidade_id: usuario.cidade_id, // Herda localização do usuário
         estado_id: cidade.estado_id,
@@ -779,382 +784,384 @@ export class PetController {
    * Atualiza automaticamente a localização (cidade_id e estado_id) baseada no novo usuário
    */
   /**
- * Método responsável por transferir um pet para um novo usuário
- * CORRIGIDO: Associações Sequelize com 'as' corretos
- */
-static transferPet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { usuario_id, adotante_id } = req.body;
-
-    // ========== VALIDAÇÕES ==========
-
-    if (!id) {
-      res.status(400).json({ error: 'ID do pet não fornecido.' });
-      return;
-    }
-
-    if (!usuario_id) {
-      res.status(400).json({ error: 'ID do usuário atual (usuario_id) não fornecido.' });
-      return;
-    }
-
-    if (!adotante_id) {
-      res.status(400).json({ error: 'ID do adotante não fornecido.' });
-      return;
-    }
-
-    const pet = await Pet.findByPk(id);
-    if (!pet) {
-      res.status(404).json({ error: 'Pet não encontrado.' });
-      return;
-    }
-
-    // ✅ VALIDAÇÃO: Confirmar se o usuario_id corresponde ao responsável atual
-    if (pet.usuario_id !== parseInt(usuario_id)) {
-      res.status(400).json({
-        error: 'Usuário não é o responsável atual deste pet.',
-        responsavel_atual: pet.usuario_id,
-        usuario_informado: usuario_id,
-      });
-      return;
-    }
-
-    // Verificar se o adotante existe
-    const adotante = await Usuario.findByPk(adotante_id);
-    if (!adotante) {
-      res.status(404).json({ error: 'Adotante não encontrado.' });
-      return;
-    }
-
-    // Verificar se o usuário atual existe
-    const usuarioAtual = await Usuario.findByPk(usuario_id);
-    if (!usuarioAtual) {
-      res.status(404).json({ error: 'Usuário atual não encontrado.' });
-      return;
-    }
-
-    // Verificar localização do adotante
-    if (!adotante.cidade_id || !adotante.estado_id) {
-      res.status(400).json({
-        error: 'Adotante não possui localização válida (cidade/estado).',
-        adotante_id: adotante_id,
-        cidade_id: adotante.cidade_id,
-        estado_id: adotante.estado_id,
-      });
-      return;
-    }
-
-    // ========== VERIFICAÇÕES DE NEGÓCIO ==========
-
-    // ✅ Aceitar pets com status 3 (Disponível para adoção) OU status 2 (Ativo/Publicado)
-    if (pet.status_id !== 3 && pet.status_id !== 2) {
-      res.status(400).json({
-        error: 'Pet não está disponível para adoção.',
-        status_atual: pet.status_id,
-        status_esperado: '3 (Disponível para adoção) ou 2 (Ativo)',
-      });
-      return;
-    }
-
-    // ✅ VALIDAÇÃO: Verificar se usuário atual e adotante são diferentes
-    if (parseInt(usuario_id) === parseInt(adotante_id)) {
-      res.status(400).json({
-        error: 'O responsável atual não pode adotar o próprio pet.',
-        usuario_id: usuario_id,
-        adotante_id: adotante_id,
-      });
-      return;
-    }
-
-    // Verificar se o pet já foi adotado por este usuário
-    if (pet.adotante_id === parseInt(adotante_id)) {
-      res.status(400).json({
-        error: 'Este pet já foi adotado por este usuário.',
-        adotante_atual: pet.adotante_id,
-      });
-      return;
-    }
-
-    // ========== ATUALIZAÇÃO DO PET (ADOÇÃO) COM TRANSAÇÃO ==========
-
-    // Usar transação para garantir consistência
-    const transaction = await Pet.sequelize!.transaction();
-
+   * Método responsável por transferir um pet para um novo usuário
+   * CORRIGIDO: Associações Sequelize com 'as' corretos
+   */
+  static transferPet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Salvar dados anteriores para log
-      const dadosAnteriores = {
-        usuario_anterior: pet.usuario_id,
-        adotante_anterior: pet.adotante_id,
-        cidade_anterior: pet.cidade_id,
-        estado_anterior: pet.estado_id,
-        status_anterior: pet.status_id,
-      };
+      const { id } = req.params;
+      const { usuario_id, adotante_id } = req.body;
 
-      // ✅ ATUALIZAÇÃO COMPLETA EM UMA ÚNICA OPERAÇÃO
-      await pet.update({
-        usuario_id: adotante_id, // ✅ NOVO responsável é o adotante
-        // doador_id permanece inalterado (doador original)
-        adotante_id: adotante_id, // ✅ Define quem adotou
-        cidade_id: adotante.cidade_id, // Localização do adotante
-        estado_id: adotante.estado_id, // Estado do adotante
-        status_id: 4, // ✅ AUTOMATICAMENTE muda para "Adotado"
-      }, { transaction });
+      // ========== VALIDAÇÕES ==========
 
-      // Confirmar transação
-      await transaction.commit();
+      if (!id) {
+        res.status(400).json({ error: 'ID do pet não fornecido.' });
+        return;
+      }
 
-      // ✅ CORRIGIDO: Buscar pet atualizado com associações corretas usando os 'as' do modelo
-      const petAtualizado = await Pet.findByPk(id, {
-        include: [
+      if (!usuario_id) {
+        res.status(400).json({ error: 'ID do usuário atual (usuario_id) não fornecido.' });
+        return;
+      }
+
+      if (!adotante_id) {
+        res.status(400).json({ error: 'ID do adotante não fornecido.' });
+        return;
+      }
+
+      const pet = await Pet.findByPk(id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      // ✅ VALIDAÇÃO: Confirmar se o usuario_id corresponde ao responsável atual
+      if (pet.usuario_id !== parseInt(usuario_id)) {
+        res.status(400).json({
+          error: 'Usuário não é o responsável atual deste pet.',
+          responsavel_atual: pet.usuario_id,
+          usuario_informado: usuario_id,
+        });
+        return;
+      }
+
+      // Verificar se o adotante existe
+      const adotante = await Usuario.findByPk(adotante_id);
+      if (!adotante) {
+        res.status(404).json({ error: 'Adotante não encontrado.' });
+        return;
+      }
+
+      // Verificar se o usuário atual existe
+      const usuarioAtual = await Usuario.findByPk(usuario_id);
+      if (!usuarioAtual) {
+        res.status(404).json({ error: 'Usuário atual não encontrado.' });
+        return;
+      }
+
+      // Verificar localização do adotante
+      if (!adotante.cidade_id || !adotante.estado_id) {
+        res.status(400).json({
+          error: 'Adotante não possui localização válida (cidade/estado).',
+          adotante_id: adotante_id,
+          cidade_id: adotante.cidade_id,
+          estado_id: adotante.estado_id,
+        });
+        return;
+      }
+
+      // ========== VERIFICAÇÕES DE NEGÓCIO ==========
+
+      // ✅ Aceitar pets com status 3 (Disponível para adoção) OU status 2 (Ativo/Publicado)
+      if (pet.status_id !== 3 && pet.status_id !== 2) {
+        res.status(400).json({
+          error: 'Pet não está disponível para adoção.',
+          status_atual: pet.status_id,
+          status_esperado: '3 (Disponível para adoção) ou 2 (Ativo)',
+        });
+        return;
+      }
+
+      // ✅ VALIDAÇÃO: Verificar se usuário atual e adotante são diferentes
+      if (parseInt(usuario_id) === parseInt(adotante_id)) {
+        res.status(400).json({
+          error: 'O responsável atual não pode adotar o próprio pet.',
+          usuario_id: usuario_id,
+          adotante_id: adotante_id,
+        });
+        return;
+      }
+
+      // Verificar se o pet já foi adotado por este usuário
+      if (pet.adotante_id === parseInt(adotante_id)) {
+        res.status(400).json({
+          error: 'Este pet já foi adotado por este usuário.',
+          adotante_atual: pet.adotante_id,
+        });
+        return;
+      }
+
+      // ========== ATUALIZAÇÃO DO PET (ADOÇÃO) COM TRANSAÇÃO ==========
+
+      // Usar transação para garantir consistência
+      const transaction = await Pet.sequelize!.transaction();
+
+      try {
+        // Salvar dados anteriores para log
+        const dadosAnteriores = {
+          usuario_anterior: pet.usuario_id,
+          adotante_anterior: pet.adotante_id,
+          cidade_anterior: pet.cidade_id,
+          estado_anterior: pet.estado_id,
+          status_anterior: pet.status_id,
+        };
+
+        // ✅ ATUALIZAÇÃO COMPLETA EM UMA ÚNICA OPERAÇÃO
+        await pet.update(
           {
-            model: Usuario,
-            as: 'doador', // ✅ Corresponde a @BelongsTo(() => Usuario, 'doador_id') doador!: Usuario;
-            attributes: ['id', 'nome', 'email', 'telefone'],
+            usuario_id: adotante_id, // ✅ NOVO responsável é o adotante
+            // doador_id permanece inalterado (doador original)
+            adotante_id: adotante_id, // ✅ Define quem adotou
+            cidade_id: adotante.cidade_id, // Localização do adotante
+            estado_id: adotante.estado_id, // Estado do adotante
+            status_id: 4, // ✅ AUTOMATICAMENTE muda para "Adotado"
           },
-          {
-            model: Usuario,
-            as: 'responsavel', // ✅ CORRIGIDO: era 'usuario', mas o modelo define como 'responsavel'
-            attributes: ['id', 'nome', 'email', 'telefone'],
-          },
-          {
-            model: Usuario,
-            as: 'adotante', // ✅ Corresponde a @BelongsTo(() => Usuario, 'adotante_id') adotante!: Usuario;
-            attributes: ['id', 'nome', 'email', 'telefone'],
-          },
-          {
-            model: Cidade,
-            as: 'cidade', // ✅ Corresponde a @BelongsTo(() => Cidade) cidade!: Cidade;
-            attributes: ['id', 'nome'],
-          },
-        ],
-      });
+          { transaction }
+        );
 
-      // ✅ RESPOSTA COM LOG DETALHADO
-      res.status(200).json({
-        message: 'Pet adotado com sucesso!',
-        pet: petAtualizado,
-        adocao: {
-          data_adocao: new Date(),
-          doador_original: {
-            id: pet.doador_id,
-            nome: petAtualizado?.doador?.nome,
-            permanece_como_doador: true,
-          },
-          responsavel_anterior: {
-            id: dadosAnteriores.usuario_anterior,
-            nome: usuarioAtual.nome,
-          },
-          novo_responsavel: {
-            id: adotante.id,
-            nome: adotante.nome,
-            eh_tambem_adotante: true,
-          },
-          transferencia: {
-            de_usuario: usuario_id,
-            para_usuario: adotante_id,
-            cidade_anterior: dadosAnteriores.cidade_anterior,
-            nova_cidade: adotante.cidade_id,
-            estado_anterior: dadosAnteriores.estado_anterior,
-            novo_estado: adotante.estado_id,
-            status_anterior: dadosAnteriores.status_anterior,
-            novo_status: 4, // Adotado
-          },
-        },
-      });
+        // Confirmar transação
+        await transaction.commit();
 
-    } catch (transactionError) {
-      // Reverter transação em caso de erro
-      await transaction.rollback();
-      throw transactionError;
+        // ✅ CORRIGIDO: Buscar pet atualizado com associações corretas usando os 'as' do modelo
+        const petAtualizado = await Pet.findByPk(id, {
+          include: [
+            {
+              model: Usuario,
+              as: 'doador', // ✅ Corresponde a @BelongsTo(() => Usuario, 'doador_id') doador!: Usuario;
+              attributes: ['id', 'nome', 'email', 'telefone'],
+            },
+            {
+              model: Usuario,
+              as: 'responsavel', // ✅ CORRIGIDO: era 'usuario', mas o modelo define como 'responsavel'
+              attributes: ['id', 'nome', 'email', 'telefone'],
+            },
+            {
+              model: Usuario,
+              as: 'adotante', // ✅ Corresponde a @BelongsTo(() => Usuario, 'adotante_id') adotante!: Usuario;
+              attributes: ['id', 'nome', 'email', 'telefone'],
+            },
+            {
+              model: Cidade,
+              as: 'cidade', // ✅ Corresponde a @BelongsTo(() => Cidade) cidade!: Cidade;
+              attributes: ['id', 'nome'],
+            },
+          ],
+        });
+
+        // ✅ RESPOSTA COM LOG DETALHADO
+        res.status(200).json({
+          message: 'Pet adotado com sucesso!',
+          pet: petAtualizado,
+          adocao: {
+            data_adocao: new Date(),
+            doador_original: {
+              id: pet.doador_id,
+              nome: petAtualizado?.doador?.nome,
+              permanece_como_doador: true,
+            },
+            responsavel_anterior: {
+              id: dadosAnteriores.usuario_anterior,
+              nome: usuarioAtual.nome,
+            },
+            novo_responsavel: {
+              id: adotante.id,
+              nome: adotante.nome,
+              eh_tambem_adotante: true,
+            },
+            transferencia: {
+              de_usuario: usuario_id,
+              para_usuario: adotante_id,
+              cidade_anterior: dadosAnteriores.cidade_anterior,
+              nova_cidade: adotante.cidade_id,
+              estado_anterior: dadosAnteriores.estado_anterior,
+              novo_estado: adotante.estado_id,
+              status_anterior: dadosAnteriores.status_anterior,
+              novo_status: 4, // Adotado
+            },
+          },
+        });
+      } catch (transactionError) {
+        // Reverter transação em caso de erro
+        await transaction.rollback();
+        throw transactionError;
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(500).json({
+          error: 'Erro ao processar adoção do pet.',
+          message: error.message,
+          details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+        });
+      } else {
+        res.status(500).json({
+          error: 'Erro desconhecido ao processar adoção.',
+          details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+        });
+      }
     }
-
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({
-        error: 'Erro ao processar adoção do pet.',
-        message: error.message,
-        details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
-      });
-    } else {
-      res.status(500).json({
-        error: 'Erro desconhecido ao processar adoção.',
-        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
-      });
-    }
-  }
-};
+  };
   /**
- * Versão ULTRA-SEGURA: removePet sem dependência de includes problemáticos
- * CORRIGIDO: Remove erro de associações múltiplas do Sequelize
- */
-static removePet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { usuario_id, motivo } = req.body;
-
-    // ========== VALIDAÇÕES BÁSICAS ==========
-
-    if (!id) {
-      res.status(400).json({ error: 'ID do pet não fornecido.' });
-      return;
-    }
-
-    if (!usuario_id) {
-      res.status(400).json({ error: 'ID do usuário atual não fornecido.' });
-      return;
-    }
-
-    // ========== BUSCAR DADOS NECESSÁRIOS (sem includes problemáticos) ==========
-
-    const pet = await Pet.findByPk(id);
-    if (!pet) {
-      res.status(404).json({ error: 'Pet não encontrado.' });
-      return;
-    }
-
-    // Buscar usuários separadamente (evita problemas de associação)
-    const usuarioAtual = await Usuario.findByPk(usuario_id);
-    if (!usuarioAtual) {
-      res.status(404).json({ error: 'Usuário atual não encontrado.' });
-      return;
-    }
-
-    const doadorOriginal = await Usuario.findByPk(pet.doador_id);
-    if (!doadorOriginal) {
-      res.status(404).json({ error: 'Doador original não encontrado.' });
-      return;
-    }
-
-    // ========== VALIDAÇÕES DE NEGÓCIO ==========
-
-    // Confirmar se o usuario_id é o responsável atual
-    if (pet.usuario_id !== parseInt(usuario_id)) {
-      res.status(400).json({
-        error: 'Usuário não é o responsável atual deste pet.',
-        responsavel_atual: pet.usuario_id,
-        usuario_informado: usuario_id,
-      });
-      return;
-    }
-
-    // Pet deve estar adotado (status 4)
-    if (pet.status_id !== 4) {
-      res.status(400).json({
-        error: 'Pet não está em status de adotado.',
-        status_atual: pet.status_id,
-        status_esperado: 4,
-      });
-      return;
-    }
-
-    // Não pode ser o próprio doador devolvendo
-    if (pet.doador_id === parseInt(usuario_id)) {
-      res.status(400).json({
-        error: 'O doador original não pode "devolver" o próprio pet.',
-        doador_id: pet.doador_id,
-        usuario_id: usuario_id,
-      });
-      return;
-    }
-
-    // Verificar localização do doador original
-    if (!doadorOriginal.cidade_id || !doadorOriginal.estado_id) {
-      res.status(400).json({
-        error: 'Doador original não possui localização válida.',
-        doador_id: pet.doador_id,
-        cidade_doador: doadorOriginal.cidade_id,
-        estado_doador: doadorOriginal.estado_id,
-      });
-      return;
-    }
-
-    // ========== DEVOLUÇÃO SEGURA ==========
-
-    const transaction = await Pet.sequelize!.transaction();
-
+   * Versão ULTRA-SEGURA: removePet sem dependência de includes problemáticos
+   * CORRIGIDO: Remove erro de associações múltiplas do Sequelize
+   */
+  static removePet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Salvar dados anteriores para log
-      const dadosAnteriores = {
-        usuario_anterior: pet.usuario_id,
-        adotante_anterior: pet.adotante_id,
-        cidade_anterior: pet.cidade_id,
-        estado_anterior: pet.estado_id,
-        status_anterior: pet.status_id,
-      };
+      const { id } = req.params;
+      const { usuario_id, motivo } = req.body;
 
-      // ✅ REVERTER ADOÇÃO (sem problemas de associação)
-      await pet.update({
-        usuario_id: pet.doador_id,           // Volta para o doador original
-        adotante_id: null,                   // Remove adotante
-        cidade_id: doadorOriginal.cidade_id, // Localização do doador
-        estado_id: doadorOriginal.estado_id, // Estado do doador
-        status_id: 2,                        // Disponível para adoção
-      }, { transaction });
+      // ========== VALIDAÇÕES BÁSICAS ==========
 
-      await transaction.commit();
+      if (!id) {
+        res.status(400).json({ error: 'ID do pet não fornecido.' });
+        return;
+      }
 
-      // ✅ BUSCAR PET ATUALIZADO DE FORMA SEGURA (sem includes)
-      const petAtualizado = await Pet.findByPk(id);
+      if (!usuario_id) {
+        res.status(400).json({ error: 'ID do usuário atual não fornecido.' });
+        return;
+      }
 
-      // ✅ RESPOSTA SIMPLES E SEGURA (sem associações problemáticas)
-      res.status(200).json({
-        message: 'Pet devolvido ao doador original com sucesso!',
-        pet: {
-          ...petAtualizado?.toJSON(),
-          // Adicionar dados dos usuários manualmente
-          doador_nome: doadorOriginal.nome,
-          ex_adotante_nome: usuarioAtual.nome,
-        },
-        devolucao: {
-          data_devolucao: new Date(),
-          motivo: motivo || 'Não informado',
-          doador_original: {
-            id: pet.doador_id,
-            nome: doadorOriginal.nome,
-            email: doadorOriginal.email,
-            telefone: doadorOriginal.telefone,
-            recebeu_pet_de_volta: true,
+      // ========== BUSCAR DADOS NECESSÁRIOS (sem includes problemáticos) ==========
+
+      const pet = await Pet.findByPk(id);
+      if (!pet) {
+        res.status(404).json({ error: 'Pet não encontrado.' });
+        return;
+      }
+
+      // Buscar usuários separadamente (evita problemas de associação)
+      const usuarioAtual = await Usuario.findByPk(usuario_id);
+      if (!usuarioAtual) {
+        res.status(404).json({ error: 'Usuário atual não encontrado.' });
+        return;
+      }
+
+      const doadorOriginal = await Usuario.findByPk(pet.doador_id);
+      if (!doadorOriginal) {
+        res.status(404).json({ error: 'Doador original não encontrado.' });
+        return;
+      }
+
+      // ========== VALIDAÇÕES DE NEGÓCIO ==========
+
+      // Confirmar se o usuario_id é o responsável atual
+      if (pet.usuario_id !== parseInt(usuario_id)) {
+        res.status(400).json({
+          error: 'Usuário não é o responsável atual deste pet.',
+          responsavel_atual: pet.usuario_id,
+          usuario_informado: usuario_id,
+        });
+        return;
+      }
+
+      // Pet deve estar adotado (status 4)
+      if (pet.status_id !== 4) {
+        res.status(400).json({
+          error: 'Pet não está em status de adotado.',
+          status_atual: pet.status_id,
+          status_esperado: 4,
+        });
+        return;
+      }
+
+      // Não pode ser o próprio doador devolvendo
+      if (pet.doador_id === parseInt(usuario_id)) {
+        res.status(400).json({
+          error: 'O doador original não pode "devolver" o próprio pet.',
+          doador_id: pet.doador_id,
+          usuario_id: usuario_id,
+        });
+        return;
+      }
+
+      // Verificar localização do doador original
+      if (!doadorOriginal.cidade_id || !doadorOriginal.estado_id) {
+        res.status(400).json({
+          error: 'Doador original não possui localização válida.',
+          doador_id: pet.doador_id,
+          cidade_doador: doadorOriginal.cidade_id,
+          estado_doador: doadorOriginal.estado_id,
+        });
+        return;
+      }
+
+      // ========== DEVOLUÇÃO SEGURA ==========
+
+      const transaction = await Pet.sequelize!.transaction();
+
+      try {
+        // Salvar dados anteriores para log
+        const dadosAnteriores = {
+          usuario_anterior: pet.usuario_id,
+          adotante_anterior: pet.adotante_id,
+          cidade_anterior: pet.cidade_id,
+          estado_anterior: pet.estado_id,
+          status_anterior: pet.status_id,
+        };
+
+        // ✅ REVERTER ADOÇÃO (sem problemas de associação)
+        await pet.update(
+          {
+            usuario_id: pet.doador_id, // Volta para o doador original
+            adotante_id: null, // Remove adotante
+            cidade_id: doadorOriginal.cidade_id, // Localização do doador
+            estado_id: doadorOriginal.estado_id, // Estado do doador
+            status_id: 2, // Disponível para adoção
           },
-          ex_adotante: {
-            id: dadosAnteriores.usuario_anterior,
-            nome: usuarioAtual.nome,
-            email: usuarioAtual.email,
-          },
-          mudancas: {
-            responsavel_anterior: dadosAnteriores.usuario_anterior,
-            novo_responsavel: pet.doador_id,
-            adotante_removido: dadosAnteriores.adotante_anterior,
-            cidade_anterior: dadosAnteriores.cidade_anterior,
-            nova_cidade: doadorOriginal.cidade_id,
-            estado_anterior: dadosAnteriores.estado_anterior,
-            novo_estado: doadorOriginal.estado_id,
-            status_anterior: dadosAnteriores.status_anterior,
-            novo_status: 3, // Disponível para adoção
-          },
-        },
-      });
+          { transaction }
+        );
 
-    } catch (transactionError) {
-      await transaction.rollback();
-      throw transactionError;
+        await transaction.commit();
+
+        // ✅ BUSCAR PET ATUALIZADO DE FORMA SEGURA (sem includes)
+        const petAtualizado = await Pet.findByPk(id);
+
+        // ✅ RESPOSTA SIMPLES E SEGURA (sem associações problemáticas)
+        res.status(200).json({
+          message: 'Pet devolvido ao doador original com sucesso!',
+          pet: {
+            ...petAtualizado?.toJSON(),
+            // Adicionar dados dos usuários manualmente
+            doador_nome: doadorOriginal.nome,
+            ex_adotante_nome: usuarioAtual.nome,
+          },
+          devolucao: {
+            data_devolucao: new Date(),
+            motivo: motivo || 'Não informado',
+            doador_original: {
+              id: pet.doador_id,
+              nome: doadorOriginal.nome,
+              email: doadorOriginal.email,
+              telefone: doadorOriginal.telefone,
+              recebeu_pet_de_volta: true,
+            },
+            ex_adotante: {
+              id: dadosAnteriores.usuario_anterior,
+              nome: usuarioAtual.nome,
+              email: usuarioAtual.email,
+            },
+            mudancas: {
+              responsavel_anterior: dadosAnteriores.usuario_anterior,
+              novo_responsavel: pet.doador_id,
+              adotante_removido: dadosAnteriores.adotante_anterior,
+              cidade_anterior: dadosAnteriores.cidade_anterior,
+              nova_cidade: doadorOriginal.cidade_id,
+              estado_anterior: dadosAnteriores.estado_anterior,
+              novo_estado: doadorOriginal.estado_id,
+              status_anterior: dadosAnteriores.status_anterior,
+              novo_status: 3, // Disponível para adoção
+            },
+          },
+        });
+      } catch (transactionError) {
+        await transaction.rollback();
+        throw transactionError;
+      }
+    } catch (error) {
+      console.error('❌ Erro no removePet:', error);
+
+      if (error instanceof Error) {
+        res.status(500).json({
+          error: 'Erro ao processar devolução do pet.',
+          message: error.message,
+          details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+        });
+      } else {
+        res.status(500).json({
+          error: 'Erro desconhecido ao processar devolução.',
+          details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+        });
+      }
     }
-
-  } catch (error) {
-    console.error('❌ Erro no removePet:', error);
-    
-    if (error instanceof Error) {
-      res.status(500).json({
-        error: 'Erro ao processar devolução do pet.',
-        message: error.message,
-        details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
-      });
-    } else {
-      res.status(500).json({
-        error: 'Erro desconhecido ao processar devolução.',
-        details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
-      });
-    }
-  }
-};
+  };
 }
