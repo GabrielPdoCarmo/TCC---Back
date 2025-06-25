@@ -6,7 +6,7 @@ export const sexoUsuario = [
       descricao: 'Feminino',
     },
     {
-        descricao: 'Não quero informar',
-      },
+      descricao: 'Não quero informar',
+    },
   ];
   
