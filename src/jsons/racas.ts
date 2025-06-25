@@ -1432,6 +1432,10 @@ export const racas = [
     especie_id: 3,
   },
   {
+    nome: 'Canário',
+    especie_id: 3,
+  },
+  {
     nome: 'Canário Chapinha',
     especie_id: 3,
   },
@@ -1480,6 +1484,10 @@ export const racas = [
     especie_id: 3,
   },
   {
+    nome: 'Periquito',
+    especie_id: 3,
+  },
+  {
     nome: 'Ring Neck',
     especie_id: 3,
   },
@@ -1489,6 +1497,10 @@ export const racas = [
   },
   {
     nome: 'Papagaio do Congo',
+    especie_id: 3,
+  },
+  {
+    nome: 'Papagaio',
     especie_id: 3,
   },
   {
@@ -1552,11 +1564,19 @@ export const racas = [
     especie_id: 4,
   },
   {
+    nome: 'Hamster',
+    especie_id: 4,
+  },
+  {
     nome: 'Porquinho-da-Índia (Cobaya)',
     especie_id: 4,
   },
   {
     nome: 'Porquinho-da-Índia Abissínio',
+    especie_id: 4,
+  },
+  {
+    nome: 'Porquinho-da-Índia',
     especie_id: 4,
   },
   {
