@@ -1436,7 +1436,7 @@ export const racas = [
     especie_id: 3,
   },
   {
-    nome: 'Canário da Terra',
+    nome: 'Cacatua',
     especie_id: 3,
   },
   {
@@ -1452,6 +1452,10 @@ export const racas = [
     especie_id: 3,
   },
   {
+    nome: 'Mandarim Branco',
+    especie_id: 3,
+  },
+  {
     nome: 'Manon',
     especie_id: 3,
   },
@@ -1460,11 +1464,19 @@ export const racas = [
     especie_id: 3,
   },
   {
-    nome: 'Pardal',
+    nome: 'Periquito Inglês',
+    especie_id: 3,
+  },
+  {
+    nome: 'Periquito Bourke',
     especie_id: 3,
   },
   {
     nome: 'Periquito de Colar',
+    especie_id: 3,
+  },
+  {
+    nome: 'Periquito Catarina',
     especie_id: 3,
   },
   {
@@ -1480,47 +1492,27 @@ export const racas = [
     especie_id: 3,
   },
   {
-    nome: 'Papagaio Verdadeiro',
+    nome: 'Calafate',
     especie_id: 3,
   },
   {
-    nome: 'Arara Canindé',
+    nome: 'Bico-de-Lacre',
     especie_id: 3,
   },
   {
-    nome: 'Arara Vermelha',
+    nome: 'Bengali Vermelho',
     especie_id: 3,
   },
   {
-    nome: 'Arara Azul',
+    nome: 'Bengali Verde',
     especie_id: 3,
   },
   {
-    nome: 'Jandaia',
+    nome: 'Lovebird',
     especie_id: 3,
   },
   {
-    nome: 'Maritaca',
-    especie_id: 3,
-  },
-  {
-    nome: 'Papagaio Galego',
-    especie_id: 3,
-  },
-  {
-    nome: 'Curió',
-    especie_id: 3,
-  },
-  {
-    nome: 'Pintassilgo',
-    especie_id: 3,
-  },
-  {
-    nome: 'Tico-Tico',
-    especie_id: 3,
-  },
-  {
-    nome: 'Trinca-Ferro',
+    nome: 'Pardal Japonês',
     especie_id: 3,
   },
   {
@@ -1556,7 +1548,31 @@ export const racas = [
     especie_id: 4,
   },
   {
+    nome: 'Hamster Europeu',
+    especie_id: 4,
+  },
+  {
     nome: 'Porquinho-da-Índia (Cobaya)',
+    especie_id: 4,
+  },
+  {
+    nome: 'Porquinho-da-Índia Abissínio',
+    especie_id: 4,
+  },
+  {
+    nome: 'Cobaya Peruana',
+    especie_id: 4,
+  },
+  {
+    nome: 'Cobaya Inglesa',
+    especie_id: 4,
+  },
+  {
+    nome: 'Cobaya Skinny',
+    especie_id: 4,
+  },
+  {
+    nome: 'Cobaya Texel',
     especie_id: 4,
   },
   {
@@ -1568,11 +1584,11 @@ export const racas = [
     especie_id: 4,
   },
   {
-    nome: 'Porquinho-da-Índia Abissínio',
+    nome: 'Rato Fancy',
     especie_id: 4,
   },
   {
-    nome: 'Cobaya Peruana',
+    nome: 'Fancy Mouse',
     especie_id: 4,
   },
 ];
