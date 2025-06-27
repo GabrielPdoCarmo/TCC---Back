@@ -93,17 +93,9 @@ export class Pet extends Model {
   @BelongsTo(() => Usuario, { foreignKey: 'usuario_id', as: 'responsavel' })
   responsavel!: Usuario;
 
-  /**
-   * Doador original do pet (nunca muda)
-   * Sempre aponta para quem primeiro cadastrou o pet
-   */
   @BelongsTo(() => Usuario, { foreignKey: 'doador_id', as: 'doador' })
   doador!: Usuario;
 
-  /**
-   * Adotante atual do pet (null se não foi adotado)
-   * Preenchido quando o pet é adotado
-   */
   @BelongsTo(() => Usuario, { foreignKey: 'adotante_id', as: 'adotante' })
   adotante!: Usuario;
 

@@ -122,7 +122,7 @@ export class TermoAdocao extends Model {
   })
   doador_telefone?: string;
 
-  // 🆕 LOCALIZAÇÃO DO DOADOR
+  // LOCALIZAÇÃO DO DOADOR
   @ForeignKey(() => Estado)
   @Column({
     type: DataType.INTEGER,
@@ -283,26 +283,17 @@ export class TermoAdocao extends Model {
 
   // === MÉTODOS DE INSTÂNCIA ===
 
-  /**
-   * Gerar hash do documento para verificação
-   */
   public gerarHashDocumento(): string {
     const crypto = require('crypto');
     const dados = `${this.pet_nome}${this.doador_nome}${this.adotante_nome}${this.assinatura_digital}${this.data_assinatura}`;
     return crypto.createHash('md5').update(dados).digest('hex');
   }
 
-  /**
-   * Verificar integridade do documento
-   */
   public verificarIntegridade(): boolean {
     const hashAtual = this.gerarHashDocumento();
     return hashAtual === this.hash_documento;
   }
 
-  /**
-   * 🆕 Obter localização formatada do doador
-   */
   public getLocalizacaoDoador(): string {
     if (this.doador_cidade_nome && this.doador_estado_nome) {
       return `${this.doador_cidade_nome} - ${this.doador_estado_nome}`;
@@ -313,9 +304,6 @@ export class TermoAdocao extends Model {
     return 'Não informado';
   }
 
-  /**
-   * 🆕 Obter localização formatada do adotante
-   */
   public getLocalizacaoAdotante(): string {
     if (this.adotante_cidade_nome && this.adotante_estado_nome) {
       return `${this.adotante_cidade_nome} - ${this.adotante_estado_nome}`;
@@ -328,9 +316,6 @@ export class TermoAdocao extends Model {
 
   // === MÉTODOS ESTÁTICOS ===
 
-  /**
-   * 🆕 Criar termo copiando dados automaticamente COM LOCALIZAÇÃO COMPLETA
-   */
   static async criarComDados(data: {
     pet_id: number;
     adotante_id: number;
@@ -356,7 +341,7 @@ export class TermoAdocao extends Model {
       throw new Error('Pet não tem responsável definido');
     }
 
-    // 🆕 Buscar dados completos do doador COM localização
+    // Buscar dados completos do doador COM localização
     const doadorCompleto = await Usuario.findByPk(pet.usuario_id, {
       include: [
         { model: Cidade, as: 'cidade' },
@@ -404,7 +389,7 @@ export class TermoAdocao extends Model {
       pet_sexo_nome: pet.sexo.descricao,
       pet_motivo_doacao: pet.motivoDoacao,
 
-      // 🆕 Snapshot do doador COM localização
+      // Snapshot do doador COM localização
       doador_nome: doadorCompleto?.nome || pet.responsavel.nome,
       doador_email: doadorCompleto?.email || pet.responsavel.email,
       doador_telefone: doadorCompleto?.telefone || pet.responsavel.telefone,
@@ -413,7 +398,7 @@ export class TermoAdocao extends Model {
       doador_cidade_id: doadorCompleto?.cidade_id,
       doador_cidade_nome: doadorCompleto?.cidade?.nome,
 
-      // 🆕 Snapshot do adotante COM localização
+      // Snapshot do adotante COM localização
       adotante_nome: adotanteCompleto.nome,
       adotante_email: adotanteCompleto.email,
       adotante_telefone: adotanteCompleto.telefone,
@@ -432,9 +417,6 @@ export class TermoAdocao extends Model {
     return termo;
   }
 
-  /**
-   * 🆕 ATUALIZAR TERMO EXISTENTE COM NOVO NOME E DADOS COMPLETOS
-   */
   static async atualizarComNovoNome(
     termoId: number,
     data: {
@@ -460,7 +442,7 @@ export class TermoAdocao extends Model {
       throw new Error('Termo não pertence ao usuário informado');
     }
 
-    // 🆕 Buscar dados completos do adotante COM localização atualizada
+    // Buscar dados completos do adotante COM localização atualizada
     const adotanteCompleto = await Usuario.findByPk(data.adotante_id, {
       include: [
         { model: Cidade, as: 'cidade' },
@@ -474,7 +456,7 @@ export class TermoAdocao extends Model {
 
     // Atualizar termo com novos dados completos do adotante
     const termoAtualizado = await termo.update({
-      // 🆕 Atualizar snapshot do adotante com dados atuais E localização
+      // Atualizar snapshot do adotante com dados atuais E localização
       adotante_nome: adotanteCompleto.nome || data.adotante_nome,
       adotante_email: adotanteCompleto.email || data.adotante_email,
       adotante_telefone: adotanteCompleto.telefone || data.adotante_telefone || null,
@@ -495,9 +477,6 @@ export class TermoAdocao extends Model {
     return termoAtualizado;
   }
 
-  /**
-   * 🆕 Buscar termo por pet COM todos os relacionamentos de localização
-   */
   static async findByPet(petId: number): Promise<TermoAdocao | null> {
     return await this.findOne({
       where: { pet_id: petId },
@@ -519,9 +498,6 @@ export class TermoAdocao extends Model {
     });
   }
 
-  /**
-   * Verificar se nome do adotante mudou e precisa atualizar termo
-   */
   static async precisaAtualizarPorNome(
     petId: number,
     usuarioId: number,
@@ -551,9 +527,6 @@ export class TermoAdocao extends Model {
     }
   }
 
-  /**
-   * Buscar todos os termos de um usuário (como doador)
-   */
   static async findByDoador(doadorId: number): Promise<TermoAdocao[]> {
     return await this.findAll({
       where: { doador_id: doadorId },
@@ -567,9 +540,6 @@ export class TermoAdocao extends Model {
     });
   }
 
-  /**
-   * Buscar todos os termos de um usuário (como adotante)
-   */
   static async findByAdotante(adotanteId: number): Promise<TermoAdocao[]> {
     return await this.findAll({
       where: { adotante_id: adotanteId },
@@ -583,9 +553,6 @@ export class TermoAdocao extends Model {
     });
   }
 
-  /**
-   * Verificar se usuário tem termo para um pet específico
-   */
   static async findByPetAndAdotante(petId: number, usuarioId: number): Promise<TermoAdocao | null> {
     return await this.findOne({
       where: {
@@ -604,9 +571,6 @@ export class TermoAdocao extends Model {
     });
   }
 
-  /**
-   * Estatísticas simples
-   */
   static async contarTermos(): Promise<{
     total: number;
     hoje: number;

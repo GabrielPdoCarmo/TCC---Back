@@ -27,10 +27,6 @@ interface CreateTermoBody {
 }
 
 export class TermoAdocaoController {
-  /**
-   * 📋 Listar todos os termos
-   * GET /api/termos-compromisso
-   */
   static async listar(req: Request, res: Response): Promise<void> {
     try {
       const { limit = 50, offset = 0, search } = req.query;
@@ -53,7 +49,7 @@ export class TermoAdocaoController {
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
-          // 🆕 Incluir relacionamentos de localização
+          // Incluir relacionamentos de localização
           { model: Estado, as: 'estadoDoador' },
           { model: Cidade, as: 'cidadeDoador' },
           { model: Estado, as: 'estadoAdotante' },
@@ -82,10 +78,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 🆕 📝 Criar novo termo de compromisso OU atualizar termo existente com novo nome
-   * POST /api/termos-compromisso
-   */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const adotanteId = req.user?.id;
@@ -108,7 +100,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 Verificar se o pet existe e se não é do próprio usuário
+      // Verificar se o pet existe e se não é do próprio usuário
       const pet = await Pet.findByPk(petId, {
         include: [
           {
@@ -136,7 +128,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO ADOTANTE COM LOCALIZAÇÃO
+      // BUSCAR DADOS COMPLETOS DO USUÁRIO ADOTANTE COM LOCALIZAÇÃO
       let dadosAdotante;
       try {
         dadosAdotante = await Usuario.findByPk(adotanteId, {
@@ -159,7 +151,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
+      // VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE NOME
       const termoExistente = await TermoAdocao.findByPet(petId);
 
       if (termoExistente && isNameUpdate) {
@@ -171,7 +163,7 @@ export class TermoAdocaoController {
           return;
         }
 
-        // 🆕 Atualizar termo existente com novos dados COMPLETOS
+        // Atualizar termo existente com novos dados COMPLETOS
         const termoAtualizado = await TermoAdocao.atualizarComNovoNome(termoExistente.id, {
           adotante_id: adotanteId,
           adotante_nome: dadosAdotante.nome || assinaturaDigital,
@@ -187,7 +179,7 @@ export class TermoAdocaoController {
         // Buscar termo completo para resposta
         const termoCompleto = await TermoAdocao.findByPet(petId);
 
-        // 🆕 Enviar email personalizado para AMBOS (não bloqueia a resposta)
+        // Enviar email personalizado para AMBOS (não bloqueia a resposta)
         emailService.enviarTermoPDF(termoCompleto!).catch((error) => {});
 
         res.status(200).json({
@@ -246,10 +238,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 📄 Buscar termo por ID
-   * GET /api/termos-compromisso/:id
-   */
   static async buscarPorId(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -260,7 +248,7 @@ export class TermoAdocaoController {
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
-          // 🆕 Incluir relacionamentos de localização
+          // Incluir relacionamentos de localização
           { model: Estado, as: 'estadoDoador' },
           { model: Cidade, as: 'cidadeDoador' },
           { model: Estado, as: 'estadoAdotante' },
@@ -287,10 +275,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 🔍 Buscar termo por pet (COM VERIFICAÇÃO DE NOME ATUALIZADO)
-   * GET /api/termos-compromisso/pet/:petId
-   */
   static async buscarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { petId } = req.params;
@@ -311,7 +295,7 @@ export class TermoAdocaoController {
 
       if (usuarioId && termo.adotante_id === usuarioId) {
         try {
-          // 🆕 Buscar dados atuais do usuário COM localização
+          // Buscar dados atuais do usuário COM localização
           const dadosUsuarioAtual = await Usuario.findByPk(usuarioId, {
             include: [
               { model: Cidade, as: 'cidade' },
@@ -335,7 +319,7 @@ export class TermoAdocaoController {
         data: {
           ...termo.toJSON(),
           nomeDesatualizado,
-          // 🆕 Adicionar informações de localização formatadas
+          // Adicionar informações de localização formatadas
           localizacaoDoador: termo.getLocalizacaoDoador(),
           localizacaoAdotante: termo.getLocalizacaoAdotante(),
         },
@@ -348,10 +332,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * ✅ VERIFICAR SE USUÁRIO PODE ADOTAR PET (COM VERIFICAÇÃO DE NOME)
-   * GET /api/termos-compromisso/pode-adotar/:petId
-   */
   static async podeAdotar(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { petId } = req.params;
@@ -388,7 +368,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO COM LOCALIZAÇÃO
+      // BUSCAR DADOS ATUAIS DO USUÁRIO COM LOCALIZAÇÃO
       let dadosUsuarioAtual;
       try {
         dadosUsuarioAtual = await Usuario.findByPk(usuarioId, {
@@ -479,10 +459,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 👤 Buscar termos como doador
-   * GET /api/termos-compromisso/meus-doacoes
-   */
   static async meusDoacoes(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -509,10 +485,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 🏠 Buscar termos como adotante
-   * GET /api/termos-compromisso/minhas-adocoes
-   */
   static async minhasAdocoes(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -539,10 +511,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 📊 Estatísticas gerais
-   * GET /api/termos-compromisso/stats
-   */
   static async stats(req: Request, res: Response): Promise<void> {
     try {
       const stats = await TermoAdocao.contarTermos();
@@ -559,10 +527,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 📱 Gerar PDF do termo (mantido para casos específicos)
-   * GET /api/termos-compromisso/:id/pdf
-   */
   static async gerarPDF(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -573,7 +537,7 @@ export class TermoAdocaoController {
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
-          // 🆕 Incluir relacionamentos de localização
+          // Incluir relacionamentos de localização
           { model: Estado, as: 'estadoDoador' },
           { model: Cidade, as: 'cidadeDoador' },
           { model: Estado, as: 'estadoAdotante' },
@@ -608,10 +572,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 🆕 📧 Enviar termo por email PARA AMBOS (doador e adotante)
-   * POST /api/termos-compromisso/:id/enviar-email
-   */
   static async enviarPorEmail(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -623,7 +583,7 @@ export class TermoAdocaoController {
           { model: Pet, as: 'pet' },
           { model: Usuario, as: 'doador' },
           { model: Usuario, as: 'adotante' },
-          // 🆕 Incluir relacionamentos de localização
+          // Incluir relacionamentos de localização
           { model: Estado, as: 'estadoDoador' },
           { model: Cidade, as: 'cidadeDoador' },
           { model: Estado, as: 'estadoAdotante' },
@@ -638,7 +598,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 Verificar se ambos os emails estão disponíveis
+      // Verificar se ambos os emails estão disponíveis
       if (!termo.doador_email || !termo.adotante_email) {
         res.status(400).json({
           error: 'Emails não disponíveis',
@@ -650,7 +610,7 @@ export class TermoAdocaoController {
         return;
       }
 
-      // 🆕 Enviar email personalizado para AMBOS
+      // Enviar email personalizado para AMBOS
       await emailService.enviarTermoPDF(termo);
 
       res.json({
@@ -681,10 +641,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * ✅ Validar integridade do termo
-   * GET /api/termos-compromisso/:id/validate
-   */
   static async validar(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -720,9 +676,6 @@ export class TermoAdocaoController {
 
   // === MÉTODO AUXILIAR PARA PDF COM LOCALIZAÇÃO ===
 
-  /**
-   * 🆕 Método auxiliar para formatar telefone
-   */
   private static formatTelefone(telefone: string | undefined): string {
     if (!telefone) return 'Não informado';
 
@@ -747,9 +700,6 @@ export class TermoAdocaoController {
     return numbers.replace(/(\d{4})(?=\d)/g, '$1-');
   }
 
-  /**
-   * 🆕 Gerar conteúdo do PDF COM informações de localização
-   */
   private static gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoAdocao): void {
     const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -796,7 +746,7 @@ export class TermoAdocaoController {
 
     yPosition += 20;
 
-    // 🆕 Dados do Doador COM localização
+    // Dados do Doador COM localização
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
     yPosition += 15;
 
@@ -810,7 +760,7 @@ export class TermoAdocaoController {
 
     yPosition += 20;
 
-    // 🆕 Dados do Adotante COM localização
+    // Dados do Adotante COM localização
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ADOTANTE:', 50, yPosition);
     yPosition += 15;
 
@@ -919,10 +869,6 @@ export class TermoAdocaoController {
   }
   // Adicione este método no TermoAdocaoController (dentro da classe)
 
-  /**
-   * 🗑️ Deletar termo de compromisso
-   * DELETE /api/termos-compromisso/:id
-   */
   static async deletar(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -989,10 +935,6 @@ export class TermoAdocaoController {
     }
   }
 
-  /**
-   * 🗑️ Deletar termo por pet ID (método auxiliar)
-   * DELETE /api/termos-compromisso/pet/:petId
-   */
   static async deletarPorPet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { petId } = req.params;

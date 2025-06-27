@@ -185,26 +185,17 @@ export class TermoDoacao extends Model {
 
   // === MÉTODOS DE INSTÂNCIA ===
 
-  /**
-   * Gerar hash do documento para verificação de integridade
-   */
   public gerarHashDocumento(): string {
     const crypto = require('crypto');
     const dados = `${this.doador_nome}${this.doador_email}${this.doador_telefone}${this.doador_cidade_id}${this.doador_estado_id}${this.assinatura_digital}${this.data_assinatura}${this.motivo_doacao}`;
     return crypto.createHash('md5').update(dados).digest('hex');
   }
 
-  /**
-   * Verificar integridade do documento
-   */
   public verificarIntegridade(): boolean {
     const hashAtual = this.gerarHashDocumento();
     return hashAtual === this.hash_documento;
   }
 
-  /**
-   * Verificar se todos os compromissos foram aceitos
-   */
   public validarCompromissos(): boolean {
     return (
       this.confirma_responsavel_legal &&
@@ -216,18 +207,12 @@ export class TermoDoacao extends Model {
     );
   }
 
-  /**
-   * Marcar PDF como enviado
-   */
   public marcarPdfEnviado(): void {
     this.data_envio_pdf = new Date();
   }
 
   // === MÉTODOS ESTÁTICOS ===
 
-  /**
-   * Criar termo de doação
-   */
   static async criarComDados(data: {
     doador_id: number;
     doador_nome: string;
@@ -311,11 +296,6 @@ export class TermoDoacao extends Model {
     return termo;
   }
 
-  /**
-   * 🆕 ATUALIZAR TERMO EXISTENTE COM DADOS ATUALIZADOS (NOME, EMAIL, TELEFONE)
-   * @param termoId - ID do termo a ser atualizado
-   * @param data - Novos dados para atualização
-   */
   static async atualizarComDadosAtualizados(
     termoId: number,
     data: {
@@ -399,9 +379,6 @@ export class TermoDoacao extends Model {
     return termoAtualizado;
   }
 
-  /**
-   * Buscar termo por usuário
-   */
   static async findByDoador(usuarioId: number): Promise<TermoDoacao | null> {
     return await this.findOne({
       where: {
@@ -415,20 +392,11 @@ export class TermoDoacao extends Model {
     });
   }
 
-  /**
-   * Verificar se usuário pode cadastrar pets (tem termo ativo)
-   */
   static async usuarioPodeCadastrarPets(usuarioId: number): Promise<boolean> {
     const termo = await this.findByDoador(usuarioId);
     return termo !== null;
   }
 
-  /**
-   * 🆕 VERIFICAR SE DADOS DO USUÁRIO MUDARAM E PRECISA ATUALIZAR TERMO
-   * @param usuarioId - ID do usuário
-   * @param dadosAtuaisUsuario - Dados atuais do usuário (nome, email, telefone, cidade, estado)
-   * @returns Promise com status sobre atualização de dados
-   */
   static async precisaAtualizarPorDados(
     usuarioId: number,
     dadosAtuaisUsuario: {
@@ -503,9 +471,6 @@ export class TermoDoacao extends Model {
     }
   }
 
-  /**
-   * Buscar todos os termos de um doador (histórico)
-   */
   static async findAllByDoador(usuarioId: number): Promise<TermoDoacao[]> {
     return await this.findAll({
       where: { doador_id: usuarioId },
@@ -518,9 +483,6 @@ export class TermoDoacao extends Model {
     });
   }
 
-  /**
-   * Estatísticas simples
-   */
   static async contarTermos(): Promise<{
     total: number;
     hoje: number;

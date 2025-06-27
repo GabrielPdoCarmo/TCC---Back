@@ -11,10 +11,10 @@ router.get('/stats', TermoDoacaoController.stats);
 router.get('/:id/validate', TermoDoacaoController.validar);
 
 // === ROTAS PROTEGIDAS (USUÁRIO LOGADO) ===
-// 🆕 Rota principal para criar/atualizar termo (suporta isDataUpdate)
+//  Rota principal para criar/atualizar termo (suporta isDataUpdate)
 router.post('/', authMiddleware, TermoDoacaoController.create);
 
-// 🆕 Rota ATUALIZADA para verificar permissões (inclui verificação de dados)
+//  Rota ATUALIZADA para verificar permissões (inclui verificação de dados)
 router.get('/pode-cadastrar-pets', authMiddleware, TermoDoacaoController.podeCadastrarPets);
 
 // Buscar termo do usuário logado

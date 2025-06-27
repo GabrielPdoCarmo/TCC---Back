@@ -27,15 +27,11 @@ interface CreateTermoDoacaoBody {
   confirmaSaude: boolean;
   autorizaVerificacao: boolean;
   compromesteContato: boolean;
-  // 🆕 Flag para indicar se é atualização de dados
+  // Flag para indicar se é atualização de dados
   isDataUpdate?: boolean;
 }
 
 export class TermoDoacaoController {
-  /**
-   * 📋 Listar todos os termos de doação (Admin)
-   * GET /api/termos-doacao
-   */
   static async listar(req: Request, res: Response): Promise<void> {
     try {
       const { limit = 50, offset = 0, search } = req.query;
@@ -83,10 +79,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📝 Criar novo termo de doação OU atualizar termo existente com dados atualizados
-   * POST /api/termos-doacao
-   */
   static async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const doadorId = req.user?.id;
@@ -109,7 +101,7 @@ export class TermoDoacaoController {
         confirmaSaude,
         autorizaVerificacao,
         compromesteContato,
-        isDataUpdate = false, // 🆕 Flag para indicar atualização de dados
+        isDataUpdate = false, // Flag para indicar atualização de dados
       }: CreateTermoDoacaoBody = req.body;
 
       // Validações básicas
@@ -144,7 +136,7 @@ export class TermoDoacaoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS COMPLETOS DO USUÁRIO
+      // BUSCAR DADOS COMPLETOS DO USUÁRIO
       let dadosUsuario;
       try {
         dadosUsuario = await Usuario.findByPk(doadorId);
@@ -161,7 +153,7 @@ export class TermoDoacaoController {
         return;
       }
 
-      // 🆕 VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE DADOS
+      // VERIFICAR SE JÁ EXISTE TERMO PARA ATUALIZAÇÃO DE DADOS
       const termoExistente = await TermoDoacao.findByDoador(doadorId);
 
       if (termoExistente && isDataUpdate) {
@@ -263,10 +255,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📄 Buscar termo por ID
-   * GET /api/termos-doacao/:id
-   */
   static async buscarPorId(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -299,10 +287,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 👤 Buscar termo ativo do usuário logado
-   * GET /api/termos-doacao/meu-termo
-   */
   static async meuTermo(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -336,10 +320,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📚 Histórico de termos do usuário
-   * GET /api/termos-doacao/meu-historico
-   */
   static async meuHistorico(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -366,10 +346,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * ✅ Verificar se usuário pode cadastrar pets (COM VERIFICAÇÃO DE DADOS ATUALIZADOS)
-   * GET /api/termos-doacao/pode-cadastrar-pets
-   */
   static async podeCadastrarPets(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const usuarioId = req.user?.id;
@@ -382,7 +358,7 @@ export class TermoDoacaoController {
         return;
       }
 
-      // 🆕 BUSCAR DADOS ATUAIS DO USUÁRIO
+      // BUSCAR DADOS ATUAIS DO USUÁRIO
       let dadosUsuarioAtual;
       try {
         dadosUsuarioAtual = await Usuario.findByPk(usuarioId);
@@ -412,7 +388,7 @@ export class TermoDoacaoController {
       // Verificar se usuário pode cadastrar pets
       let podecastrar = false;
       let temTermo = false;
-      let dadosDesatualizados = false; // 🆕 Flag para indicar se dados principais mudaram
+      let dadosDesatualizados = false; // Flag para indicar se dados principais mudaram
 
       try {
         const termo = await TermoDoacao.findByDoador(usuarioId);
@@ -420,7 +396,7 @@ export class TermoDoacaoController {
         if (termo) {
           temTermo = true;
 
-          // 🆕 VERIFICAR SE DADOS PRINCIPAIS NO TERMO SÃO DIFERENTES DOS DADOS ATUAIS
+          // VERIFICAR SE DADOS PRINCIPAIS NO TERMO SÃO DIFERENTES DOS DADOS ATUAIS
           const dadosAtualUsuario = {
             nome: dadosUsuarioAtual.nome || '',
             email: dadosUsuarioAtual.email || '',
@@ -471,7 +447,7 @@ export class TermoDoacaoController {
         data: {
           podecastrar,
           temTermo,
-          dadosDesatualizados, // 🆕 Indica se precisa reAssinar por dados diferentes
+          dadosDesatualizados, // Indica se precisa reAssinar por dados diferentes
         },
       });
     } catch (error: any) {
@@ -487,10 +463,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📊 Estatísticas gerais (Admin)
-   * GET /api/termos-doacao/stats
-   */
   static async stats(req: Request, res: Response): Promise<void> {
     try {
       const stats = await TermoDoacao.contarTermos();
@@ -507,10 +479,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * ✅ Validar integridade do termo
-   * GET /api/termos-doacao/:id/validate
-   */
   static async validar(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -546,10 +514,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📄 Gerar PDF do termo
-   * POST /api/termos-doacao/:id/gerar-pdf
-   */
   static async gerarPDF(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -600,10 +564,6 @@ export class TermoDoacaoController {
     }
   }
 
-  /**
-   * 📧 Enviar PDF por email
-   * POST /api/termos-doacao/:id/enviar-pdf
-   */
   static async enviarPDF(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;

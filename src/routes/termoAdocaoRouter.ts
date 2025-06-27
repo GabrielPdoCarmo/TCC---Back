@@ -20,7 +20,7 @@ router.get('/minhas-adocoes', authMiddleware, TermoAdocaoController.minhasAdocoe
 router.get('/pode-adotar/:petId', authMiddleware, TermoAdocaoController.podeAdotar);
 router.get('/pet/:petId', authMiddleware, TermoAdocaoController.buscarPorPet);
 
-// 🆕 NOVAS ROTAS DE DELETE
+// NOVAS ROTAS DE DELETE
 router.delete('/pet/:petId', authMiddleware, TermoAdocaoController.deletarPorPet);
 router.delete('/:id', authMiddleware, TermoAdocaoController.deletar);
 

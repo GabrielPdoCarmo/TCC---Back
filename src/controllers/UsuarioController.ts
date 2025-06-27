@@ -114,7 +114,7 @@ export class UsuarioController {
     };
   }
 
-  // 🆕 NOVA FUNÇÃO: Extrair caminho do arquivo da URL do Supabase
+  // NOVA FUNÇÃO: Extrair caminho do arquivo da URL do Supabase
   private static extrairCaminhoSupabase(url: string): string | null {
     try {
       if (!url) return null;
@@ -127,7 +127,7 @@ export class UsuarioController {
     }
   }
 
-  // 🆕 NOVA FUNÇÃO: Deletar imagem do Supabase
+  // NOVA FUNÇÃO: Deletar imagem do Supabase
   private static async deletarImagemSupabase(imagemUrl: string): Promise<boolean> {
     try {
       if (!imagemUrl) return true;
@@ -147,7 +147,7 @@ export class UsuarioController {
     }
   }
 
-  // 🆕 NOVA FUNÇÃO: Upload de imagem para Supabase
+  // NOVA FUNÇÃO: Upload de imagem para Supabase
   private static async uploadImagemSupabase(
     fileBuffer: Buffer,
     fileName: string,
@@ -690,7 +690,7 @@ export class UsuarioController {
         delete dadosAtualizados.senha;
       }
 
-      // 🆕 PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
+      // PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
       let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
 
       if (req.file) {
@@ -719,7 +719,7 @@ export class UsuarioController {
           fotoUrl = bodyFoto; // Manter a URL atual por enquanto
         }
       } else if (nome && nome !== usuario.nome && usuario.foto) {
-        // 🆕 CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
+        // CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
 
         try {
           // Baixar a imagem atual do Supabase
@@ -857,7 +857,7 @@ export class UsuarioController {
         }
       } catch (termoError) {}
 
-      // 🆕 DELETAR IMAGEM DO SUPABASE ANTES DE EXCLUIR USUÁRIO
+      // DELETAR IMAGEM DO SUPABASE ANTES DE EXCLUIR USUÁRIO
       if (usuario.foto) {
         await UsuarioController.deletarImagemSupabase(usuario.foto);
       }

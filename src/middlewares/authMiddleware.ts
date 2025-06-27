@@ -11,10 +11,7 @@ export interface AuthenticatedRequest extends Request {
     email: string;
   };
 }
-
-/**
- * 🔐 Middleware de autenticação JWT
- */
+// Middleware de autenticação
 export const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;

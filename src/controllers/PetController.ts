@@ -8,10 +8,10 @@ import { supabase } from '../api/supabaseClient';
 import { Op } from 'sequelize';
 import { MyPets } from '../models/mypetsModel';
 export class PetController {
-  // ✅ Função helper para sanitizar rg_Pet
+  // Função helper para sanitizar rg_Pet
   private static sanitizeRgPet(value: any): string | null {
     if (!value || value === '' || (typeof value === 'string' && value.trim() === '')) {
-      return null; // ✅ Converte string vazia para NULL
+      return null; // Converte string vazia para NULL
     }
 
     // Remove formatação (pontos, traços, espaços)
@@ -398,10 +398,6 @@ export class PetController {
     }
   };
 
-  /**
-   * Método responsável pelo cadastro de novos pets no sistema
-   * Implementa upload de imagens, validações de negócio e criação de relacionamentos
-   */
   static create: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Desestruturação dos dados recebidos do frontend
@@ -532,10 +528,10 @@ export class PetController {
         dadosAtualizados.rg_Pet = PetController.sanitizeRgPet(dadosAtualizados.rg_Pet);
       }
 
-      // ✅ PROCESSAMENTO APRIMORADO DA FOTO
+      // PROCESSAMENTO APRIMORADO DA FOTO
       let fotoUrl = pet.foto; // Manter a foto atual por padrão
 
-      // ✅ CASO 1: Nova imagem enviada como arquivo (FormData)
+      // CASO 1: Nova imagem enviada como arquivo (FormData)
       if (req.file) {
         try {
           // Deletar foto anterior se existir
@@ -568,7 +564,7 @@ export class PetController {
           fotoUrl = pet.foto; // Manter foto anterior
         }
       }
-      // ✅ CASO 2: Foto enviada via JSON (URL existente ou remoção)
+      // CASO 2: Foto enviada via JSON (URL existente ou remoção)
       else if ('foto' in dadosAtualizados) {
         if (dadosAtualizados.foto === '' || dadosAtualizados.foto === null) {
           // Remover foto
@@ -595,7 +591,7 @@ export class PetController {
           fotoUrl = pet.foto;
         }
       }
-      // ✅ CASO 3: Nenhuma informação sobre foto - manter atual
+      // CASO 3: Nenhuma informação sobre foto - manter atual
       else {
         fotoUrl = pet.foto;
       }
@@ -603,10 +599,10 @@ export class PetController {
       // Atualizar dados do pet
       dadosAtualizados.foto = fotoUrl;
 
-      // ✅ ATUALIZAR PET NO BANCO
+      // ATUALIZAR PET NO BANCO
       await pet.update(dadosAtualizados);
 
-      // ✅ PROCESSAR DOENÇAS/DEFICIÊNCIAS
+      // PROCESSAR DOENÇAS/DEFICIÊNCIAS
       if (doencas && Array.isArray(doencas)) {
         // Remover associações existentes
         await PetDoencaDeficiencia.destroy({
@@ -629,7 +625,7 @@ export class PetController {
         );
       }
 
-      // ✅ BUSCAR PET ATUALIZADO PARA RESPOSTA
+      // BUSCAR PET ATUALIZADO PARA RESPOSTA
       const petAtualizado = await Pet.findByPk(id, {
         include: [
           {
@@ -642,7 +638,7 @@ export class PetController {
 
       res.json(petAtualizado);
     } catch (error) {
-      // ✅ TRATAMENTO DE ERRO APRIMORADO
+      // TRATAMENTO DE ERRO APRIMORADO
       if (error instanceof Error) {
         res.status(500).json({
           error: 'Erro ao atualizar o pet.',
@@ -779,14 +775,7 @@ export class PetController {
       res.status(500).json({ error: 'Erro ao buscar pets por status.' });
     }
   };
-  /**
-   * Método responsável por transferir um pet para um novo usuário
-   * Atualiza automaticamente a localização (cidade_id e estado_id) baseada no novo usuário
-   */
-  /**
-   * Método responsável por transferir um pet para um novo usuário
-   * CORRIGIDO: Associações Sequelize com 'as' corretos
-   */
+
   static transferPet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
@@ -815,7 +804,7 @@ export class PetController {
         return;
       }
 
-      // ✅ VALIDAÇÃO: Confirmar se o usuario_id corresponde ao responsável atual
+      // VALIDAÇÃO: Confirmar se o usuario_id corresponde ao responsável atual
       if (pet.usuario_id !== parseInt(usuario_id)) {
         res.status(400).json({
           error: 'Usuário não é o responsável atual deste pet.',
@@ -852,7 +841,7 @@ export class PetController {
 
       // ========== VERIFICAÇÕES DE NEGÓCIO ==========
 
-      // ✅ Aceitar pets com status 3 (Disponível para adoção) OU status 2 (Ativo/Publicado)
+      // Aceitar pets com status 3 (Disponível para adoção) OU status 2 (Ativo/Publicado)
       if (pet.status_id !== 3 && pet.status_id !== 2) {
         res.status(400).json({
           error: 'Pet não está disponível para adoção.',
@@ -862,7 +851,7 @@ export class PetController {
         return;
       }
 
-      // ✅ VALIDAÇÃO: Verificar se usuário atual e adotante são diferentes
+      // VALIDAÇÃO: Verificar se usuário atual e adotante são diferentes
       if (parseInt(usuario_id) === parseInt(adotante_id)) {
         res.status(400).json({
           error: 'O responsável atual não pode adotar o próprio pet.',
@@ -896,15 +885,15 @@ export class PetController {
           status_anterior: pet.status_id,
         };
 
-        // ✅ ATUALIZAÇÃO COMPLETA EM UMA ÚNICA OPERAÇÃO
+        // ATUALIZAÇÃO COMPLETA EM UMA ÚNICA OPERAÇÃO
         await pet.update(
           {
-            usuario_id: adotante_id, // ✅ NOVO responsável é o adotante
+            usuario_id: adotante_id, // NOVO responsável é o adotante
             // doador_id permanece inalterado (doador original)
-            adotante_id: adotante_id, // ✅ Define quem adotou
+            adotante_id: adotante_id, // Define quem adotou
             cidade_id: adotante.cidade_id, // Localização do adotante
             estado_id: adotante.estado_id, // Estado do adotante
-            status_id: 4, // ✅ AUTOMATICAMENTE muda para "Adotado"
+            status_id: 4, // AUTOMATICAMENTE muda para "Adotado"
           },
           { transaction }
         );
@@ -912,33 +901,33 @@ export class PetController {
         // Confirmar transação
         await transaction.commit();
 
-        // ✅ CORRIGIDO: Buscar pet atualizado com associações corretas usando os 'as' do modelo
+        // CORRIGIDO: Buscar pet atualizado com associações corretas usando os 'as' do modelo
         const petAtualizado = await Pet.findByPk(id, {
           include: [
             {
               model: Usuario,
-              as: 'doador', // ✅ Corresponde a @BelongsTo(() => Usuario, 'doador_id') doador!: Usuario;
+              as: 'doador', // Corresponde a @BelongsTo(() => Usuario, 'doador_id') doador!: Usuario;
               attributes: ['id', 'nome', 'email', 'telefone'],
             },
             {
               model: Usuario,
-              as: 'responsavel', // ✅ CORRIGIDO: era 'usuario', mas o modelo define como 'responsavel'
+              as: 'responsavel', // CORRIGIDO: era 'usuario', mas o modelo define como 'responsavel'
               attributes: ['id', 'nome', 'email', 'telefone'],
             },
             {
               model: Usuario,
-              as: 'adotante', // ✅ Corresponde a @BelongsTo(() => Usuario, 'adotante_id') adotante!: Usuario;
+              as: 'adotante', // Corresponde a @BelongsTo(() => Usuario, 'adotante_id') adotante!: Usuario;
               attributes: ['id', 'nome', 'email', 'telefone'],
             },
             {
               model: Cidade,
-              as: 'cidade', // ✅ Corresponde a @BelongsTo(() => Cidade) cidade!: Cidade;
+              as: 'cidade', // Corresponde a @BelongsTo(() => Cidade) cidade!: Cidade;
               attributes: ['id', 'nome'],
             },
           ],
         });
 
-        // ✅ RESPOSTA COM LOG DETALHADO
+        // RESPOSTA COM LOG DETALHADO
         res.status(200).json({
           message: 'Pet adotado com sucesso!',
           pet: petAtualizado,
@@ -990,10 +979,7 @@ export class PetController {
       }
     }
   };
-  /**
-   * Versão ULTRA-SEGURA: removePet sem dependência de includes problemáticos
-   * CORRIGIDO: Remove erro de associações múltiplas do Sequelize
-   */
+
   static removePet: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.params;
@@ -1089,7 +1075,7 @@ export class PetController {
           status_anterior: pet.status_id,
         };
 
-        // ✅ REVERTER ADOÇÃO (sem problemas de associação)
+        // REVERTER ADOÇÃO (sem problemas de associação)
         await pet.update(
           {
             usuario_id: pet.doador_id, // Volta para o doador original
@@ -1103,10 +1089,10 @@ export class PetController {
 
         await transaction.commit();
 
-        // ✅ BUSCAR PET ATUALIZADO DE FORMA SEGURA (sem includes)
+        // BUSCAR PET ATUALIZADO DE FORMA SEGURA (sem includes)
         const petAtualizado = await Pet.findByPk(id);
 
-        // ✅ RESPOSTA SIMPLES E SEGURA (sem associações problemáticas)
+        // RESPOSTA SIMPLES E SEGURA (sem associações problemáticas)
         res.status(200).json({
           message: 'Pet devolvido ao doador original com sucesso!',
           pet: {
@@ -1148,8 +1134,6 @@ export class PetController {
         throw transactionError;
       }
     } catch (error) {
-      console.error('❌ Erro no removePet:', error);
-
       if (error instanceof Error) {
         res.status(500).json({
           error: 'Erro ao processar devolução do pet.',
