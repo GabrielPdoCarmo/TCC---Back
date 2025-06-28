@@ -27,8 +27,17 @@ export class Usuario extends Model {
   @Column({ type: DataType.STRING(255), allowNull: false })
   senha!: string;
 
-  @Column({ type: DataType.STRING(14), allowNull: false, unique: true })
-  cpf!: string;
+  // Campo para CPF ou CNPJ (18 caracteres para comportar CNPJ com máscara)
+  @Column({ type: DataType.STRING(18), allowNull: false, unique: true })
+  documento!: string;
+
+  // Campo para identificar o tipo de documento
+  @Column({ 
+    type: DataType.ENUM('CPF', 'CNPJ'), 
+    allowNull: false,
+    defaultValue: 'CPF'
+  })
+  tipo_documento!: 'CPF' | 'CNPJ';
 
   @Column({ type: DataType.STRING(10), allowNull: true })
   cep!: string;
@@ -46,6 +55,7 @@ export class Usuario extends Model {
 
   @BelongsTo(() => Cidade)
   cidade!: Cidade;
+  
   @BelongsTo(() => Estado)
   estado!: Estado;
 

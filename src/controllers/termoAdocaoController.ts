@@ -1,4 +1,4 @@
-// controllers/termosCompromissoController.ts - Atualizado com localização completa e email para ambos
+// controllers/termosCompromissoController.ts - Atualizado com suporte a CPF/CNPJ
 
 import { Request, Response } from 'express';
 import { TermoAdocao } from '../models/termoAdocaoModel';
@@ -169,7 +169,8 @@ export class TermoAdocaoController {
           adotante_nome: dadosAdotante.nome || assinaturaDigital,
           adotante_email: dadosAdotante.email,
           adotante_telefone: dadosAdotante.telefone,
-          adotante_cpf: dadosAdotante.cpf,
+          adotante_documento: dadosAdotante.documento,
+          adotante_tipo_documento: dadosAdotante.tipo_documento,
           adotante_cidade_id: dadosAdotante.cidade_id,
           adotante_estado_id: dadosAdotante.estado_id,
           assinatura_digital: assinaturaDigital,
@@ -290,8 +291,8 @@ export class TermoAdocaoController {
         return;
       }
 
-      // SE USUÁRIO ESTÁ LOGADO, VERIFICAR SE NOME MUDOU
-      let nomeDesatualizado = false;
+      // SE USUÁRIO ESTÁ LOGADO, VERIFICAR SE DADOS MUDARAM
+      let dadosDesatualizados = false;
 
       if (usuarioId && termo.adotante_id === usuarioId) {
         try {
@@ -304,11 +305,31 @@ export class TermoAdocaoController {
           });
 
           if (dadosUsuarioAtual) {
-            const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
-            const nomeNoTermo = termo.adotante_nome || '';
+            const dadosAtuais = {
+              nome: dadosUsuarioAtual.nome || '',
+              email: dadosUsuarioAtual.email || '',
+              telefone: dadosUsuarioAtual.telefone || '',
+              documento: dadosUsuarioAtual.documento || '',
+              tipo_documento: dadosUsuarioAtual.tipo_documento,
+            };
 
-            if (nomeAtualUsuario !== nomeNoTermo) {
-              nomeDesatualizado = true;
+            const dadosNoTermo = {
+              nome: termo.adotante_nome || '',
+              email: termo.adotante_email || '',
+              telefone: termo.adotante_telefone || '',
+              documento: termo.adotante_documento || '',
+              tipo_documento: termo.adotante_tipo_documento,
+            };
+
+            // Verificar se algum dado principal mudou
+            if (
+              dadosAtuais.nome !== dadosNoTermo.nome ||
+              dadosAtuais.email !== dadosNoTermo.email ||
+              dadosAtuais.telefone !== dadosNoTermo.telefone ||
+              dadosAtuais.documento !== dadosNoTermo.documento ||
+              dadosAtuais.tipo_documento !== dadosNoTermo.tipo_documento
+            ) {
+              dadosDesatualizados = true;
             }
           }
         } catch (error) {}
@@ -318,10 +339,13 @@ export class TermoAdocaoController {
         message: 'Termo encontrado',
         data: {
           ...termo.toJSON(),
-          nomeDesatualizado,
+          dadosDesatualizados,
           // Adicionar informações de localização formatadas
           localizacaoDoador: termo.getLocalizacaoDoador(),
           localizacaoAdotante: termo.getLocalizacaoAdotante(),
+          // Adicionar documentos formatados
+          documentoDoadorFormatado: termo.getDocumentoDoadorFormatado(),
+          documentoAdotanteFormatado: termo.getDocumentoAdotanteFormatado(),
         },
       });
     } catch (error: any) {
@@ -361,7 +385,7 @@ export class TermoAdocaoController {
           data: {
             podeAdotar: false,
             temTermo: false,
-            nomeDesatualizado: false,
+            dadosDesatualizados: false,
             motivo: 'proprio_pet',
           },
         });
@@ -384,7 +408,7 @@ export class TermoAdocaoController {
             data: {
               podeAdotar: false,
               temTermo: false,
-              nomeDesatualizado: false,
+              dadosDesatualizados: false,
             },
           });
           return;
@@ -395,7 +419,7 @@ export class TermoAdocaoController {
           data: {
             podeAdotar: false,
             temTermo: false,
-            nomeDesatualizado: false,
+            dadosDesatualizados: false,
           },
         });
         return;
@@ -404,7 +428,7 @@ export class TermoAdocaoController {
       // Verificar se já existe termo
       let podeAdotar = false;
       let temTermo = false;
-      let nomeDesatualizado = false;
+      let dadosDesatualizados = false;
 
       try {
         const termo = await TermoAdocao.findByPet(parseInt(petId));
@@ -412,16 +436,35 @@ export class TermoAdocaoController {
         if (termo && termo.adotante_id === usuarioId) {
           temTermo = true;
 
-          // VERIFICAR SE NOME NO TERMO É DIFERENTE DO NOME ATUAL
-          const nomeAtualUsuario = dadosUsuarioAtual.nome || '';
-          const nomeNoTermo = termo.adotante_nome || '';
+          // VERIFICAR SE DADOS NO TERMO SÃO DIFERENTES DOS DADOS ATUAIS
+          const dadosAtuais = {
+            nome: dadosUsuarioAtual.nome || '',
+            email: dadosUsuarioAtual.email || '',
+            telefone: dadosUsuarioAtual.telefone || '',
+            documento: dadosUsuarioAtual.documento || '',
+            tipo_documento: dadosUsuarioAtual.tipo_documento,
+          };
 
-          if (nomeAtualUsuario !== nomeNoTermo) {
-            // Nome foi alterado - precisa atualizar termo
-            nomeDesatualizado = true;
+          const dadosNoTermo = {
+            nome: termo.adotante_nome || '',
+            email: termo.adotante_email || '',
+            telefone: termo.adotante_telefone || '',
+            documento: termo.adotante_documento || '',
+            tipo_documento: termo.adotante_tipo_documento,
+          };
+
+          if (
+            dadosAtuais.nome !== dadosNoTermo.nome ||
+            dadosAtuais.email !== dadosNoTermo.email ||
+            dadosAtuais.telefone !== dadosNoTermo.telefone ||
+            dadosAtuais.documento !== dadosNoTermo.documento ||
+            dadosAtuais.tipo_documento !== dadosNoTermo.tipo_documento
+          ) {
+            // Dados foram alterados - precisa atualizar termo
+            dadosDesatualizados = true;
             podeAdotar = false;
           } else {
-            // Nome está igual - pode adotar normalmente
+            // Dados estão iguais - pode adotar normalmente
             podeAdotar = true;
           }
         } else if (termo && termo.adotante_id !== usuarioId) {
@@ -436,7 +479,7 @@ export class TermoAdocaoController {
       } catch (error: any) {
         podeAdotar = false;
         temTermo = false;
-        nomeDesatualizado = false;
+        dadosDesatualizados = false;
       }
 
       res.status(200).json({
@@ -444,7 +487,7 @@ export class TermoAdocaoController {
         data: {
           podeAdotar,
           temTermo,
-          nomeDesatualizado,
+          dadosDesatualizados,
         },
       });
     } catch (error: any) {
@@ -453,7 +496,7 @@ export class TermoAdocaoController {
         data: {
           podeAdotar: false,
           temTermo: false,
-          nomeDesatualizado: false,
+          dadosDesatualizados: false,
         },
       });
     }
@@ -674,7 +717,7 @@ export class TermoAdocaoController {
     }
   }
 
-  // === MÉTODO AUXILIAR PARA PDF COM LOCALIZAÇÃO ===
+  // === MÉTODO AUXILIAR PARA PDF COM LOCALIZAÇÃO E DOCUMENTOS ===
 
   private static formatTelefone(telefone: string | undefined): string {
     if (!telefone) return 'Não informado';
@@ -746,7 +789,7 @@ export class TermoAdocaoController {
 
     yPosition += 20;
 
-    // Dados do Doador COM localização
+    // Dados do Doador COM localização e documento
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO DOADOR:', 50, yPosition);
     yPosition += 15;
 
@@ -756,11 +799,13 @@ export class TermoAdocaoController {
     yPosition += 12;
     doc.text(`Telefone: ${this.formatTelefone(termo.doador_telefone)}`, 50, yPosition);
     yPosition += 12;
+    doc.text(`Documento: ${termo.getDocumentoDoadorFormatado()}`, 50, yPosition);
+    yPosition += 12;
     doc.text(`Localização: ${termo.getLocalizacaoDoador()}`, 50, yPosition);
 
     yPosition += 20;
 
-    // Dados do Adotante COM localização
+    // Dados do Adotante COM localização e documento
     doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ADOTANTE:', 50, yPosition);
     yPosition += 15;
 
@@ -770,12 +815,9 @@ export class TermoAdocaoController {
     yPosition += 12;
     doc.text(`Telefone: ${this.formatTelefone(termo.adotante_telefone)}`, 50, yPosition);
     yPosition += 12;
+    doc.text(`Documento: ${termo.getDocumentoAdotanteFormatado()}`, 50, yPosition);
+    yPosition += 12;
     doc.text(`Localização: ${termo.getLocalizacaoAdotante()}`, 50, yPosition);
-
-    if (termo.adotante_cpf) {
-      yPosition += 12;
-      doc.text(`CPF: ${termo.adotante_cpf}`, 50, yPosition);
-    }
 
     yPosition += 20;
 
@@ -867,7 +909,6 @@ export class TermoAdocaoController {
         align: 'center',
       });
   }
-  // Adicione este método no TermoAdocaoController (dentro da classe)
 
   static async deletar(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {

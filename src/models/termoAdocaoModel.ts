@@ -1,4 +1,4 @@
-// models/termosCompromissoModel.ts - Atualizado com localização completa do doador e adotante
+// models/termosCompromissoModel.ts - Atualizado com localização completa e suporte a CPF/CNPJ
 
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Pet } from './petModel';
@@ -100,7 +100,7 @@ export class TermoAdocao extends Model {
   })
   pet_motivo_doacao?: string;
 
-  // === SNAPSHOT DOS DADOS DO DOADOR COM LOCALIZAÇÃO ===
+  // === SNAPSHOT DOS DADOS DO DOADOR COM LOCALIZAÇÃO E DOCUMENTO ===
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
@@ -121,6 +121,21 @@ export class TermoAdocao extends Model {
     comment: 'Telefone do doador',
   })
   doador_telefone?: string;
+
+  // DOCUMENTO DO DOADOR (CPF/CNPJ)
+  @Column({
+    type: DataType.STRING(18),
+    allowNull: true,
+    comment: 'CPF ou CNPJ do doador',
+  })
+  doador_documento?: string;
+
+  @Column({
+    type: DataType.ENUM('CPF', 'CNPJ'),
+    allowNull: true,
+    comment: 'Tipo de documento do doador',
+  })
+  doador_tipo_documento?: 'CPF' | 'CNPJ';
 
   // LOCALIZAÇÃO DO DOADOR
   @ForeignKey(() => Estado)
@@ -153,7 +168,7 @@ export class TermoAdocao extends Model {
   })
   doador_cidade_nome?: string;
 
-  // === SNAPSHOT DOS DADOS DO ADOTANTE COM LOCALIZAÇÃO ===
+  // === SNAPSHOT DOS DADOS DO ADOTANTE COM LOCALIZAÇÃO E DOCUMENTO ===
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
@@ -175,13 +190,22 @@ export class TermoAdocao extends Model {
   })
   adotante_telefone?: string;
 
+  // DOCUMENTO DO ADOTANTE (CPF/CNPJ)
   @Column({
-    type: DataType.STRING(14),
+    type: DataType.STRING(18),
     allowNull: true,
-    comment: 'CPF do adotante',
+    comment: 'CPF ou CNPJ do adotante',
   })
-  adotante_cpf?: string;
+  adotante_documento?: string;
 
+  @Column({
+    type: DataType.ENUM('CPF', 'CNPJ'),
+    allowNull: true,
+    comment: 'Tipo de documento do adotante',
+  })
+  adotante_tipo_documento?: 'CPF' | 'CNPJ';
+
+  // LOCALIZAÇÃO DO ADOTANTE
   @ForeignKey(() => Estado)
   @Column({
     type: DataType.INTEGER,
@@ -314,6 +338,35 @@ export class TermoAdocao extends Model {
     return 'Não informado';
   }
 
+  // NOVOS MÉTODOS: Formatação de documentos
+  public getDocumentoDoadorFormatado(): string {
+    if (!this.doador_documento) return 'Não informado';
+    
+    if (this.doador_tipo_documento === 'CPF') {
+      // Formato: 000.000.000-00
+      return this.doador_documento;
+    } else if (this.doador_tipo_documento === 'CNPJ') {
+      // Formato: 00.000.000/0000-00
+      return this.doador_documento;
+    }
+    
+    return this.doador_documento;
+  }
+
+  public getDocumentoAdotanteFormatado(): string {
+    if (!this.adotante_documento) return 'Não informado';
+    
+    if (this.adotante_tipo_documento === 'CPF') {
+      // Formato: 000.000.000-00
+      return this.adotante_documento;
+    } else if (this.adotante_tipo_documento === 'CNPJ') {
+      // Formato: 00.000.000/0000-00
+      return this.adotante_documento;
+    }
+    
+    return this.adotante_documento;
+  }
+
   // === MÉTODOS ESTÁTICOS ===
 
   static async criarComDados(data: {
@@ -372,7 +425,7 @@ export class TermoAdocao extends Model {
       }
     }
 
-    // Criar termo com snapshot completo dos dados incluindo localização
+    // Criar termo com snapshot completo dos dados incluindo localização e documentos
     const termo = await this.create({
       pet_id: data.pet_id,
       doador_id: pet.usuario_id,
@@ -389,20 +442,23 @@ export class TermoAdocao extends Model {
       pet_sexo_nome: pet.sexo.descricao,
       pet_motivo_doacao: pet.motivoDoacao,
 
-      // Snapshot do doador COM localização
+      // Snapshot do doador COM localização e documento
       doador_nome: doadorCompleto?.nome || pet.responsavel.nome,
       doador_email: doadorCompleto?.email || pet.responsavel.email,
       doador_telefone: doadorCompleto?.telefone || pet.responsavel.telefone,
+      doador_documento: doadorCompleto?.documento,
+      doador_tipo_documento: doadorCompleto?.tipo_documento,
       doador_estado_id: doadorCompleto?.estado_id,
       doador_estado_nome: doadorCompleto?.estado?.nome,
       doador_cidade_id: doadorCompleto?.cidade_id,
       doador_cidade_nome: doadorCompleto?.cidade?.nome,
 
-      // Snapshot do adotante COM localização
+      // Snapshot do adotante COM localização e documento
       adotante_nome: adotanteCompleto.nome,
       adotante_email: adotanteCompleto.email,
       adotante_telefone: adotanteCompleto.telefone,
-      adotante_cpf: adotanteCompleto.cpf,
+      adotante_documento: adotanteCompleto.documento,
+      adotante_tipo_documento: adotanteCompleto.tipo_documento,
       adotante_cidade_id: adotanteCompleto.cidade_id,
       adotante_cidade_nome: adotanteCompleto.cidade?.nome,
       adotante_estado_id: adotanteCompleto.estado_id,
@@ -424,7 +480,8 @@ export class TermoAdocao extends Model {
       adotante_nome: string;
       adotante_email: string;
       adotante_telefone?: string;
-      adotante_cpf?: string;
+      adotante_documento?: string;
+      adotante_tipo_documento?: 'CPF' | 'CNPJ';
       adotante_cidade_id?: number;
       adotante_estado_id?: number;
       assinatura_digital: string;
@@ -456,11 +513,12 @@ export class TermoAdocao extends Model {
 
     // Atualizar termo com novos dados completos do adotante
     const termoAtualizado = await termo.update({
-      // Atualizar snapshot do adotante com dados atuais E localização
+      // Atualizar snapshot do adotante com dados atuais, localização e documento
       adotante_nome: adotanteCompleto.nome || data.adotante_nome,
       adotante_email: adotanteCompleto.email || data.adotante_email,
       adotante_telefone: adotanteCompleto.telefone || data.adotante_telefone || null,
-      adotante_cpf: adotanteCompleto.cpf || data.adotante_cpf || null,
+      adotante_documento: adotanteCompleto.documento || data.adotante_documento || null,
+      adotante_tipo_documento: adotanteCompleto.tipo_documento || data.adotante_tipo_documento || null,
       adotante_cidade_id: adotanteCompleto.cidade_id || data.adotante_cidade_id || null,
       adotante_cidade_nome: adotanteCompleto.cidade?.nome || null,
       adotante_estado_id: adotanteCompleto.estado_id || data.adotante_estado_id || null,

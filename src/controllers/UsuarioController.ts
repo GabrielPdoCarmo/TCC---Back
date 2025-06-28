@@ -9,7 +9,7 @@ import bcrypt from 'bcrypt';
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
 import { supabase } from '../api/supabaseClient';
 const saltRounds = 10;
-import { cpf } from 'cpf-cnpj-validator';
+import { cpf, cnpj } from 'cpf-cnpj-validator';
 import { Pet } from '../models/petModel';
 import { RecuperacaoSenha } from '../models/RecuperacaoSenhaModel';
 import nodemailer from 'nodemailer';
@@ -17,6 +17,61 @@ import { Op } from 'sequelize';
 import validator from 'validator';
 
 export class UsuarioController {
+  // NOVA FUNÇÃO: Validação e formatação de CPF/CNPJ
+  private static validarEFormatarDocumento(documento: string): { 
+    isValid: boolean; 
+    formatted?: string; 
+    tipo?: 'CPF' | 'CNPJ'; 
+    error?: string 
+  } {
+    if (!documento) {
+      return {
+        isValid: false,
+        error: 'Documento é obrigatório'
+      };
+    }
+
+    const documentoNumerico = documento.replace(/\D/g, '');
+
+    // Verificar se é CPF (11 dígitos)
+    if (documentoNumerico.length === 11) {
+      if (cpf.isValid(documentoNumerico)) {
+        return {
+          isValid: true,
+          formatted: cpf.format(documentoNumerico),
+          tipo: 'CPF'
+        };
+      } else {
+        return {
+          isValid: false,
+          error: 'CPF inválido'
+        };
+      }
+    }
+    // Verificar se é CNPJ (14 dígitos)
+    else if (documentoNumerico.length === 14) {
+      if (cnpj.isValid(documentoNumerico)) {
+        return {
+          isValid: true,
+          formatted: cnpj.format(documentoNumerico),
+          tipo: 'CNPJ'
+        };
+      } else {
+        return {
+          isValid: false,
+          error: 'CNPJ inválido'
+        };
+      }
+    }
+    // Comprimento inválido
+    else {
+      return {
+        isValid: false,
+        error: 'Documento deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ)'
+      };
+    }
+  }
+
   // NOVA FUNÇÃO: Validação granular de email usando validator.js
   private static validarEmail(email: string): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -192,9 +247,10 @@ export class UsuarioController {
     }
   }
 
+  // MÉTODO ATUALIZADO: Verificação de campos duplicados com documento
   static async checkDuplicateFields(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, cpf, telefone } = req.body;
+      const { email, documento, telefone } = req.body;
       const duplicateFields: string[] = [];
 
       if (email) {
@@ -204,11 +260,11 @@ export class UsuarioController {
         }
       }
 
-      if (cpf) {
-        const cpfNumerico = cpf.replace(/\D/g, '');
-        const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
-        if (existingCpf) {
-          duplicateFields.push('cpf');
+      if (documento) {
+        const documentoNumerico = documento.replace(/\D/g, '');
+        const existingDocumento = await Usuario.findOne({ where: { documento: documentoNumerico } });
+        if (existingDocumento) {
+          duplicateFields.push('documento');
         }
       }
 
@@ -323,8 +379,9 @@ export class UsuarioController {
     }
   }
 
+  // MÉTODO ATUALIZADO: Create com suporte a CPF/CNPJ
   static async create(req: Request, res: Response, next: NextFunction): Promise<Response> {
-    let { nome, sexo_id, telefone, email, senha, cpf: cpfInput, cep, estado_id, cidade_id } = req.body;
+    let { nome, sexo_id, telefone, email, senha, documento: documentoInput, cep, estado_id, cidade_id } = req.body;
 
     try {
       // Validação de email
@@ -344,22 +401,24 @@ export class UsuarioController {
         });
       }
 
-      // Validação de CPF
-      if (cpfInput) {
-        const cpfNumerico = cpfInput.replace(/\D/g, '');
+      // Validação de CPF/CNPJ
+      let tipoDocumento: 'CPF' | 'CNPJ';
+      if (documentoInput) {
+        const validacaoDocumento = UsuarioController.validarEFormatarDocumento(documentoInput);
 
-        if (!cpf.isValid(cpfNumerico)) {
+        if (!validacaoDocumento.isValid) {
           return res.status(400).json({
-            error: 'CPF inválido',
-            message: 'O CPF informado não é válido.',
+            error: 'Documento inválido',
+            message: validacaoDocumento.error || 'O documento informado não é válido.',
           });
         }
 
-        cpfInput = cpf.format(cpfNumerico);
+        documentoInput = validacaoDocumento.formatted;
+        tipoDocumento = validacaoDocumento.tipo!;
       } else {
         return res.status(400).json({
-          error: 'CPF obrigatório',
-          message: 'O CPF é obrigatório para cadastro.',
+          error: 'Documento obrigatório',
+          message: 'O CPF ou CNPJ é obrigatório para cadastro.',
         });
       }
 
@@ -424,12 +483,11 @@ export class UsuarioController {
 
       cep = cep || null;
 
-      // 🔄 PROCESSAMENTO DE IMAGEM ATUALIZADO
+      // PROCESSAMENTO DE IMAGEM
       let fotoUrl = null;
 
       if (req.file) {
         const fileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
-
         fotoUrl = await UsuarioController.uploadImagemSupabase(req.file.buffer, fileName, req.file.mimetype);
       }
 
@@ -439,7 +497,8 @@ export class UsuarioController {
         telefone,
         email,
         senha: senhaHash,
-        cpf: cpfInput,
+        documento: documentoInput,
+        tipo_documento: tipoDocumento,
         cep,
         foto: fotoUrl,
         estado_id,
@@ -454,7 +513,7 @@ export class UsuarioController {
       if (error instanceof UniqueConstraintError) {
         const duplicatedField = error.errors?.[0]?.path;
         const duplicateFields: string[] = [];
-        let specificMessage = 'Email, CPF ou telefone já cadastrado no sistema.';
+        let specificMessage = 'Email, documento ou telefone já cadastrado no sistema.';
         let fieldName = '';
 
         switch (duplicatedField) {
@@ -463,10 +522,10 @@ export class UsuarioController {
             fieldName = 'email';
             duplicateFields.push('email');
             break;
-          case 'cpf':
-            specificMessage = 'Este CPF já está cadastrado no sistema.';
-            fieldName = 'cpf';
-            duplicateFields.push('cpf');
+          case 'documento':
+            specificMessage = 'Este documento já está cadastrado no sistema.';
+            fieldName = 'documento';
+            duplicateFields.push('documento');
             break;
           case 'telefone':
             specificMessage = 'Este telefone já está cadastrado no sistema.';
@@ -475,7 +534,7 @@ export class UsuarioController {
             break;
           default:
             try {
-              const cpfNumerico = cpfInput?.replace(/\D/g, '');
+              const documentoNumerico = documentoInput?.replace(/\D/g, '');
               const telefoneNumerico = telefone?.replace(/\D/g, '');
 
               if (email) {
@@ -485,10 +544,10 @@ export class UsuarioController {
                 }
               }
 
-              if (cpfNumerico) {
-                const existingCpf = await Usuario.findOne({ where: { cpf: cpfNumerico } });
-                if (existingCpf) {
-                  duplicateFields.push('cpf');
+              if (documentoNumerico) {
+                const existingDocumento = await Usuario.findOne({ where: { documento: documentoNumerico } });
+                if (existingDocumento) {
+                  duplicateFields.push('documento');
                 }
               }
 
@@ -526,9 +585,10 @@ export class UsuarioController {
     }
   }
 
+  // MÉTODO ATUALIZADO: Verificação de duplicação para edição
   static async checkDuplicateFieldsForEdit(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { userId, email, cpf, telefone } = req.body;
+      const { userId, email, documento, telefone } = req.body;
       const duplicateFields: string[] = [];
 
       if (!userId) {
@@ -548,16 +608,16 @@ export class UsuarioController {
         }
       }
 
-      if (cpf) {
-        const cpfNumerico = cpf.replace(/\D/g, '');
-        const existingCpf = await Usuario.findOne({
+      if (documento) {
+        const documentoNumerico = documento.replace(/\D/g, '');
+        const existingDocumento = await Usuario.findOne({
           where: {
-            cpf: cpfNumerico,
+            documento: documentoNumerico,
             id: { [Op.ne]: userId },
           },
         });
-        if (existingCpf) {
-          duplicateFields.push('cpf');
+        if (existingDocumento) {
+          duplicateFields.push('documento');
         }
       }
 
@@ -592,8 +652,7 @@ export class UsuarioController {
     }
   }
 
-  // 🔄 MÉTODO UPDATE CORRIGIDO
-  // 🔄 MÉTODO UPDATE CORRIGIDO - Renomeia imagem quando nome muda
+  // MÉTODO ATUALIZADO: Update com suporte a CPF/CNPJ
   static async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -615,13 +674,13 @@ export class UsuarioController {
         telefone,
         email,
         senha,
-        cpf: cpfInput,
+        documento: documentoInput,
         cep,
         estado_id,
         cidade_id,
       } = req.body;
 
-      // Validações (mantidas iguais)
+      // Validações
       if (email !== undefined && email !== null && email.trim() !== '') {
         const validacaoEmail = UsuarioController.validarEmail(email);
         if (!validacaoEmail.isValid) {
@@ -634,18 +693,20 @@ export class UsuarioController {
         }
       }
 
-      if (cpfInput !== undefined && cpfInput !== null) {
-        const cpfNumerico = cpfInput.replace(/\D/g, '');
+      let tipoDocumento: 'CPF' | 'CNPJ' | undefined;
+      if (documentoInput !== undefined && documentoInput !== null) {
+        const validacaoDocumento = UsuarioController.validarEFormatarDocumento(documentoInput);
 
-        if (!cpf.isValid(cpfNumerico)) {
+        if (!validacaoDocumento.isValid) {
           res.status(400).json({
-            error: 'CPF inválido',
-            message: 'O CPF informado não é válido.',
+            error: 'Documento inválido',
+            message: validacaoDocumento.error || 'O documento informado não é válido.',
           });
           return;
         }
 
-        cpfInput = cpf.format(cpfNumerico);
+        documentoInput = validacaoDocumento.formatted;
+        tipoDocumento = validacaoDocumento.tipo;
       }
 
       if (telefone !== undefined && telefone !== null && telefone.trim() !== '') {
@@ -667,7 +728,8 @@ export class UsuarioController {
         sexo_id: sexo_id ? Number(sexo_id) : usuario.sexo_id,
         telefone,
         email,
-        cpf: cpfInput,
+        documento: documentoInput,
+        tipo_documento: tipoDocumento || usuario.tipo_documento,
         cep: cep !== undefined && cep !== null ? cep : usuario.cep,
         estado_id: estado_id ? Number(estado_id) : usuario.estado_id,
         cidade_id: cidade_id ? Number(cidade_id) : usuario.cidade_id,
@@ -690,18 +752,16 @@ export class UsuarioController {
         delete dadosAtualizados.senha;
       }
 
-      // PROCESSAMENTO DE IMAGEM CORRIGIDO COM RENOMEAÇÃO
-      let fotoUrl: string | null = usuario.foto; // Manter a foto atual por padrão
+      // PROCESSAMENTO DE IMAGEM
+      let fotoUrl: string | null = usuario.foto;
 
       if (req.file) {
-        // 📷 CASO 1: Nova imagem enviada
         const fileName = `${nome?.replace(/\s+/g, '_') || 'usuario'}_${Date.now()}.jpg`;
-
         const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
           req.file.buffer,
           fileName,
           req.file.mimetype,
-          usuario.foto // Passar a imagem anterior para deletar
+          usuario.foto
         );
 
         if (novaFotoUrl) {
@@ -709,31 +769,25 @@ export class UsuarioController {
         }
       } else if (bodyFoto !== undefined) {
         if (!bodyFoto || bodyFoto.trim() === '') {
-          // 🗑️ CASO 2: Remover foto
           if (usuario.foto) {
             await UsuarioController.deletarImagemSupabase(usuario.foto);
           }
           fotoUrl = null;
         } else {
-          // 🔄 CASO 3: Manter foto existente, mas verificar se nome mudou
-          fotoUrl = bodyFoto; // Manter a URL atual por enquanto
+          fotoUrl = bodyFoto;
         }
       } else if (nome && nome !== usuario.nome && usuario.foto) {
-        // CASO 4: NOVO! Nome mudou e tem foto - renomear arquivo
-
         try {
-          // Baixar a imagem atual do Supabase
           const response = await fetch(usuario.foto);
           if (response.ok) {
             const buffer = Buffer.from(await response.arrayBuffer());
             const novoFileName = `${nome.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
-            // Fazer upload com novo nome e deletar o antigo
             const novaFotoUrl = await UsuarioController.uploadImagemSupabase(
               buffer,
               novoFileName,
               'image/jpeg',
-              usuario.foto // Deletar a imagem antiga
+              usuario.foto
             );
 
             if (novaFotoUrl) {
@@ -741,7 +795,6 @@ export class UsuarioController {
             }
           }
         } catch (error) {
-          // Manter a foto atual em caso de erro
           fotoUrl = usuario.foto;
         }
       }
@@ -767,7 +820,7 @@ export class UsuarioController {
       if (error instanceof UniqueConstraintError) {
         const duplicatedField = error.errors?.[0]?.path;
         const duplicateFields: string[] = [];
-        let specificMessage = 'Email, CPF ou telefone já em uso por outro usuário.';
+        let specificMessage = 'Email, documento ou telefone já em uso por outro usuário.';
         let fieldName = '';
 
         switch (duplicatedField) {
@@ -776,10 +829,10 @@ export class UsuarioController {
             fieldName = 'email';
             duplicateFields.push('email');
             break;
-          case 'cpf':
-            specificMessage = 'Este CPF já está sendo usado por outro usuário.';
-            fieldName = 'cpf';
-            duplicateFields.push('cpf');
+          case 'documento':
+            specificMessage = 'Este documento já está sendo usado por outro usuário.';
+            fieldName = 'documento';
+            duplicateFields.push('documento');
             break;
           case 'telefone':
             specificMessage = 'Este telefone já está sendo usado por outro usuário.';
@@ -807,7 +860,7 @@ export class UsuarioController {
     }
   }
 
-  // 🔄 MÉTODO DELETE CORRIGIDO
+  // MÉTODO DELETE (mantido igual)
   static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Number(req.params.id);

@@ -1,4 +1,4 @@
-// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação (com imagem personalizada)
+// services/emailTermoDoacaoService.ts - Serviço de Email para Termo de Doação com suporte a CPF/CNPJ
 
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
@@ -148,9 +148,6 @@ export class EmailTermoDoacaoService {
   /**
    * 📝 Gerar conteúdo do PDF
    */
-  /**
-   * 📝 Gerar conteúdo do PDF
-   */
   private gerarConteudoPDF(doc: PDFKit.PDFDocument, termo: TermoDoacao): void {
     const dataFormatada = new Date(termo.data_assinatura).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -189,10 +186,10 @@ export class EmailTermoDoacaoService {
     const telefoneFormatado = this.formatarTelefone(termo.doador_telefone);
     doc.text(`Telefone: ${telefoneFormatado}`, 50, yPosition);
 
-    if (termo.doador_cpf) {
-      yPosition += 15;
-      doc.text(`CPF: ${termo.doador_cpf}`, 50, yPosition);
-    }
+    // ✅ DOCUMENTO FORMATADO (CPF/CNPJ)
+    yPosition += 15;
+    const documentoFormatado = termo.getDocumentoDoadorFormatado();
+    doc.text(`Documento: ${documentoFormatado}`, 50, yPosition);
 
     // Incluir dados de localização se disponíveis
     if (termo.estado?.nome || termo.cidade?.nome) {
@@ -320,6 +317,7 @@ export class EmailTermoDoacaoService {
 
     const localizacao = [termo.cidade?.nome, termo.estado?.nome].filter(Boolean).join(' - ');
     const telefoneFormatado = this.formatarTelefone(termo.doador_telefone); // ✅ TELEFONE FORMATADO
+    const documentoFormatado = termo.getDocumentoDoadorFormatado(); // ✅ DOCUMENTO FORMATADO
 
     return `
       <!DOCTYPE html>
@@ -357,6 +355,7 @@ export class EmailTermoDoacaoService {
               <p><strong>Doador:</strong> ${termo.doador_nome}</p>
               <p><strong>Email:</strong> ${termo.doador_email}</p>
               <p><strong>Telefone:</strong> ${telefoneFormatado}</p>
+              <p><strong>Documento:</strong> ${documentoFormatado}</p>
               ${localizacao ? `<p><strong>Localização:</strong> ${localizacao}</p>` : ''}
               <p><strong>Data da Assinatura:</strong> ${dataFormatada}</p>
               <p><strong>ID do Documento:</strong> #${termo.id}</p>

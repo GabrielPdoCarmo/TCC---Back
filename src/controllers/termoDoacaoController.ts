@@ -1,4 +1,4 @@
-// controllers/termoDoacaoController.ts - Controller atualizado com verificação completa de dados
+// controllers/termoDoacaoController.ts - Controller atualizado com suporte a CPF/CNPJ
 
 import { Request, Response } from 'express';
 import { TermoDoacao } from '../models/termoDoacaoModel';
@@ -163,7 +163,8 @@ export class TermoDoacaoController {
           doador_nome: dadosUsuario.nome || assinaturaDigital,
           doador_email: dadosUsuario.email,
           doador_telefone: dadosUsuario.telefone,
-          doador_cpf: dadosUsuario.cpf,
+          doador_documento: dadosUsuario.documento,
+          doador_tipo_documento: dadosUsuario.tipo_documento,
           doador_cidade_id: dadosUsuario.cidade_id,
           doador_estado_id: dadosUsuario.estado_id,
           motivo_doacao: motivoDoacao,
@@ -207,7 +208,8 @@ export class TermoDoacaoController {
         doador_nome: dadosUsuario.nome || assinaturaDigital,
         doador_email: dadosUsuario.email,
         doador_telefone: dadosUsuario.telefone,
-        doador_cpf: dadosUsuario.cpf,
+        doador_documento: dadosUsuario.documento,
+        doador_tipo_documento: dadosUsuario.tipo_documento,
         doador_cidade_id: dadosUsuario.cidade_id,
         doador_estado_id: dadosUsuario.estado_id,
         motivo_doacao: motivoDoacao,
@@ -401,6 +403,8 @@ export class TermoDoacaoController {
             nome: dadosUsuarioAtual.nome || '',
             email: dadosUsuarioAtual.email || '',
             telefone: dadosUsuarioAtual.telefone || '',
+            documento: dadosUsuarioAtual.documento || '',
+            tipo_documento: dadosUsuarioAtual.tipo_documento,
             cidade_id: dadosUsuarioAtual.cidade_id || null,
             estado_id: dadosUsuarioAtual.estado_id || null,
           };
@@ -409,18 +413,22 @@ export class TermoDoacaoController {
             nome: termo.doador_nome || '',
             email: termo.doador_email || '',
             telefone: termo.doador_telefone || '',
+            documento: termo.doador_documento || '',
+            tipo_documento: termo.doador_tipo_documento,
             cidade_id: termo.doador_cidade_id || null,
             estado_id: termo.doador_estado_id || null,
           };
 
-          // Verificar se algum dos dados principais mudou (incluindo localização)
+          // Verificar se algum dos dados principais mudou (incluindo documento e localização)
           const nomeIgual = dadosAtualUsuario.nome === dadosNoTermo.nome;
           const emailIgual = dadosAtualUsuario.email === dadosNoTermo.email;
           const telefoneIgual = dadosAtualUsuario.telefone === dadosNoTermo.telefone;
+          const documentoIgual = dadosAtualUsuario.documento === dadosNoTermo.documento;
+          const tipoDocumentoIgual = dadosAtualUsuario.tipo_documento === dadosNoTermo.tipo_documento;
           const cidadeIgual = dadosAtualUsuario.cidade_id === dadosNoTermo.cidade_id;
           const estadoIgual = dadosAtualUsuario.estado_id === dadosNoTermo.estado_id;
 
-          if (!nomeIgual || !emailIgual || !telefoneIgual || !cidadeIgual || !estadoIgual) {
+          if (!nomeIgual || !emailIgual || !telefoneIgual || !documentoIgual || !tipoDocumentoIgual || !cidadeIgual || !estadoIgual) {
             // Dados foram alterados - precisa reAssinar termo
             dadosDesatualizados = true;
             podecastrar = false;
@@ -430,7 +438,6 @@ export class TermoDoacaoController {
           }
         } else {
           // Não tem termo
-
           podecastrar = false;
           temTermo = false;
         }

@@ -1,4 +1,4 @@
-// models/termoDoacaoModel.ts - Modelo atualizado com método de atualização de dados completos
+// models/termoDoacaoModel.ts - Modelo atualizado com suporte a CPF/CNPJ
 
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo, BeforeSave } from 'sequelize-typescript';
 import { Usuario } from './usuarioModel';
@@ -44,12 +44,20 @@ export class TermoDoacao extends Model {
   })
   doador_telefone?: string;
 
+  // DOCUMENTO DO DOADOR (CPF/CNPJ)
   @Column({
-    type: DataType.STRING(14),
+    type: DataType.STRING(18),
     allowNull: true,
-    comment: 'CPF do doador',
+    comment: 'CPF ou CNPJ do doador',
   })
-  doador_cpf?: string;
+  doador_documento?: string;
+
+  @Column({
+    type: DataType.ENUM('CPF', 'CNPJ'),
+    allowNull: true,
+    comment: 'Tipo de documento do doador',
+  })
+  doador_tipo_documento?: 'CPF' | 'CNPJ';
 
   @ForeignKey(() => Estado)
   @Column({
@@ -187,7 +195,7 @@ export class TermoDoacao extends Model {
 
   public gerarHashDocumento(): string {
     const crypto = require('crypto');
-    const dados = `${this.doador_nome}${this.doador_email}${this.doador_telefone}${this.doador_cidade_id}${this.doador_estado_id}${this.assinatura_digital}${this.data_assinatura}${this.motivo_doacao}`;
+    const dados = `${this.doador_nome}${this.doador_email}${this.doador_telefone}${this.doador_documento}${this.doador_cidade_id}${this.doador_estado_id}${this.assinatura_digital}${this.data_assinatura}${this.motivo_doacao}`;
     return crypto.createHash('md5').update(dados).digest('hex');
   }
 
@@ -211,6 +219,21 @@ export class TermoDoacao extends Model {
     this.data_envio_pdf = new Date();
   }
 
+  // NOVO MÉTODO: Formatação de documento
+  public getDocumentoDoadorFormatado(): string {
+    if (!this.doador_documento) return 'Não informado';
+    
+    if (this.doador_tipo_documento === 'CPF') {
+      // Formato: 000.000.000-00
+      return this.doador_documento;
+    } else if (this.doador_tipo_documento === 'CNPJ') {
+      // Formato: 00.000.000/0000-00
+      return this.doador_documento;
+    }
+    
+    return this.doador_documento;
+  }
+
   // === MÉTODOS ESTÁTICOS ===
 
   static async criarComDados(data: {
@@ -218,7 +241,8 @@ export class TermoDoacao extends Model {
     doador_nome: string;
     doador_email: string;
     doador_telefone: string;
-    doador_cpf: string;
+    doador_documento: string;
+    doador_tipo_documento: 'CPF' | 'CNPJ';
     doador_cidade_id: number;
     doador_estado_id: number;
     motivo_doacao: string;
@@ -267,11 +291,12 @@ export class TermoDoacao extends Model {
     const termo = await this.create({
       doador_id: data.doador_id,
 
-      // Snapshot do doador
+      // Snapshot do doador com documento
       doador_nome: doador.nome,
       doador_email: doador.email,
       doador_telefone: doador.telefone || null,
-      doador_cpf: doador.cpf || null,
+      doador_documento: doador.documento || null,
+      doador_tipo_documento: doador.tipo_documento || null,
       doador_cidade_id: doador.cidade_id || null,
       doador_estado_id: doador.estado_id || null,
 
@@ -303,7 +328,8 @@ export class TermoDoacao extends Model {
       doador_nome: string;
       doador_email: string;
       doador_telefone?: string;
-      doador_cpf?: string;
+      doador_documento?: string;
+      doador_tipo_documento?: 'CPF' | 'CNPJ';
       doador_cidade_id?: number;
       doador_estado_id?: number;
       motivo_doacao: string;
@@ -341,15 +367,14 @@ export class TermoDoacao extends Model {
       throw new Error('Todos os compromissos devem ser aceitos para atualizar o termo');
     }
 
-    // Log dos dados anteriores
-
     // Atualizar termo com novos dados
     const termoAtualizado = await termo.update({
-      // Atualizar snapshot do doador com dados atuais
+      // Atualizar snapshot do doador com dados atuais e documento
       doador_nome: data.doador_nome,
       doador_email: data.doador_email,
       doador_telefone: data.doador_telefone || null,
-      doador_cpf: data.doador_cpf || null,
+      doador_documento: data.doador_documento || null,
+      doador_tipo_documento: data.doador_tipo_documento || null,
       doador_cidade_id: data.doador_cidade_id || null,
       doador_estado_id: data.doador_estado_id || null,
 
@@ -403,6 +428,8 @@ export class TermoDoacao extends Model {
       nome: string;
       email: string;
       telefone?: string;
+      documento?: string;
+      tipo_documento?: 'CPF' | 'CNPJ';
       cidade_id?: number | null;
       estado_id?: number | null;
     }
@@ -413,6 +440,8 @@ export class TermoDoacao extends Model {
       nome: string;
       email: string;
       telefone?: string;
+      documento?: string;
+      tipo_documento?: 'CPF' | 'CNPJ';
       cidade_id?: number | null;
       estado_id?: number | null;
     };
@@ -420,6 +449,8 @@ export class TermoDoacao extends Model {
       nome: boolean;
       email: boolean;
       telefone: boolean;
+      documento: boolean;
+      tipo_documento: boolean;
       cidade: boolean;
       estado: boolean;
     };
@@ -436,6 +467,8 @@ export class TermoDoacao extends Model {
         nome: termo.doador_nome || '',
         email: termo.doador_email || '',
         telefone: termo.doador_telefone || '',
+        documento: termo.doador_documento || '',
+        tipo_documento: termo.doador_tipo_documento,
         cidade_id: termo.doador_cidade_id || null,
         estado_id: termo.doador_estado_id || null,
       };
@@ -444,21 +477,31 @@ export class TermoDoacao extends Model {
         nome: dadosAtuaisUsuario.nome || '',
         email: dadosAtuaisUsuario.email || '',
         telefone: dadosAtuaisUsuario.telefone || '',
+        documento: dadosAtuaisUsuario.documento || '',
+        tipo_documento: dadosAtuaisUsuario.tipo_documento,
         cidade_id: dadosAtuaisUsuario.cidade_id || null,
         estado_id: dadosAtuaisUsuario.estado_id || null,
       };
 
-      // Verificar diferenças em cada campo (incluindo localização)
+      // Verificar diferenças em cada campo (incluindo documento e localização)
       const diferencias = {
         nome: dadosAtuais.nome.trim() !== dadosNoTermo.nome.trim(),
         email: dadosAtuais.email.trim() !== dadosNoTermo.email.trim(),
         telefone: dadosAtuais.telefone.trim() !== dadosNoTermo.telefone.trim(),
+        documento: dadosAtuais.documento.trim() !== dadosNoTermo.documento.trim(),
+        tipo_documento: dadosAtuais.tipo_documento !== dadosNoTermo.tipo_documento,
         cidade: dadosAtuais.cidade_id !== dadosNoTermo.cidade_id,
         estado: dadosAtuais.estado_id !== dadosNoTermo.estado_id,
       };
 
       const precisaAtualizar =
-        diferencias.nome || diferencias.email || diferencias.telefone || diferencias.cidade || diferencias.estado;
+        diferencias.nome || 
+        diferencias.email || 
+        diferencias.telefone || 
+        diferencias.documento ||
+        diferencias.tipo_documento ||
+        diferencias.cidade || 
+        diferencias.estado;
 
       return {
         precisaAtualizar,
