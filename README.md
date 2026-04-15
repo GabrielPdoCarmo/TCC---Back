@@ -82,4 +82,4 @@ Link: (https://github.com/GabrielPdoCarmo/TCC---Front)
 ## 👨‍💻 Autor
 
 Gabriel Pereira do Carmo  
-📧 gabrielcarmobr14@gmail.com
+📧 gabrielcarmobr19@gmail.com
